@@ -1,0 +1,8 @@
+logger:
+  level: warn
+  format: json
+
+postgres:
+  host: "postgres"
+  port: "5432"
+  ssl_mode: "disable"
