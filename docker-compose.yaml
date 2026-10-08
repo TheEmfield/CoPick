@@ -1,0 +1,32 @@
+services:
+  postgres:
+    image: postgres:13.8
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_ROOT_PASSWORD:-postgres}
+      POSTGRES_DB: testdb
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./postgres_init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d testdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5433:5432"
+
+  postgres_migrate:
+    container_name: postgres_migrate
+    build:
+      context: migrator
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_ROOT_PASSWORD:-postgres}
+      POSTGRES_DB: testdb
+    entrypoint: ["./migrator"]
+    command: ["up", "-c", "config.yaml"]
+    depends_on:
+      postgres:
+        condition: service_healthy
