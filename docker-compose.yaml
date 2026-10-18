@@ -30,3 +30,18 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  connector:
+      container_name: connector
+      build:
+        context: connector
+      environment:
+        TMDB_API_KEY: ${TMDB_API_KEY} 
+        POSTGRES_USER: pguser
+        POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pgpwd}
+        POSTGRES_DB: testdb
+      entrypoint: ["./connector"]
+      command: ["up", "-c", "config.yaml"]
+      depends_on:
+        postgres_migrate:
+          condition: service_completed_successfully
