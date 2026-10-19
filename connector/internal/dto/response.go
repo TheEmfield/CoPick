@@ -1,5 +1,15 @@
 package dto
 
+type DiscoverRequest struct {
+	Genres         []GenrePreference `json:"preferences"`
+	ExcludedGenres []string          `json:"excluded_genres"`
+}
+
+type GenrePreference struct {
+	Genre string `json:"genre"`
+	Count int    `json:"count"`
+}
+
 type DiscoverResponse struct {
 	Movies     []Movie `json:"movies"`
 	TotalCount int     `json:"total_count"`
