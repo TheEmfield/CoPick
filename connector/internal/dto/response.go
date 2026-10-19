@@ -1,7 +1,7 @@
 package dto
 
 type DiscoverRequest struct {
-	Genres         []GenrePreference `json:"preferences"`
+	Preferences    []GenrePreference `json:"preferences"`
 	ExcludedGenres []string          `json:"excluded_genres"`
 }
 

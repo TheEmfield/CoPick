@@ -86,6 +86,14 @@ type Client struct {
 	logger *slog.Logger
 }
 
+func New(cfg config.TMDB, logger *slog.Logger) *Client {
+	return &Client{
+		client: &http.Client{Timeout: cfg.TMDBTimeout},
+		cfg:    cfg,
+		logger: logger,
+	}
+}
+
 func (c *Client) fetchMovie(ctx context.Context, genre string, excludedGenres []string, amount int) ([]dto.Movie, error) {
 	exGenres := genresToIDString(excludedGenres, genreToId)
 
@@ -178,7 +186,7 @@ func (c *Client) fetchMovie(ctx context.Context, genre string, excludedGenres []
 func (c *Client) FetchMovies(ctx context.Context, req dto.DiscoverRequest) (*dto.DiscoverResponse, error) {
 	var allMovies []dto.Movie
 
-	for _, pref := range req.Genres {
+	for _, pref := range req.Preferences {
 		movies, err := c.fetchMovie(ctx, pref.Genre, req.ExcludedGenres, pref.Count)
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch genre '%s': %w", pref.Genre, err)
