@@ -36,12 +36,11 @@ services:
       build:
         context: connector
       environment:
-        TMDB_API_KEY: ${TMDB_API_KEY} 
-        POSTGRES_USER: pguser
-        POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pgpwd}
-        POSTGRES_DB: testdb
+        TMDB_API_KEY: ${TMDB_API_KEY}
       entrypoint: ["./connector"]
       command: ["up", "-c", "config.yaml"]
       depends_on:
         postgres_migrate:
           condition: service_completed_successfully
+volumes:
+  postgres_data:

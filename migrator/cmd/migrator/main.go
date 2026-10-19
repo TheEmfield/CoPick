@@ -10,6 +10,8 @@ import (
 	"github.com/TheEmfield/CoPick/migrator/internal/config"
 	"github.com/TheEmfield/CoPick/migrator/internal/logger"
 	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
 var CommandMapper = map[string]func(*slog.Logger, *migrate.Migrate){

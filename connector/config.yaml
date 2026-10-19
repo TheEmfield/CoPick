@@ -2,11 +2,6 @@ logger:
   level: debug
   format: text
 
-postgres:
-  host: "postgres"
-  port: "5432"
-  ssl_mode: "disable"
-
 tmdb:
   tmdb_timeout: 10s
   url: "https://api.themoviedb.org/3"
