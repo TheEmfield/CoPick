@@ -1,8 +1,8 @@
 package com.copick.algorithm.dto;
 
-import java.Util.Map;
+import java.util.Map;
 
-public record ParticipantPreferenceDto(
+public record ParticipantPreference(
         int profileId,
         Map<Integer, Double> genreWeights
 ) {}
