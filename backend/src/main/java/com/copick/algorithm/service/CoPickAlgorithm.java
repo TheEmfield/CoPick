@@ -8,6 +8,40 @@ import java.util.stream.Collectors;
 
 public class CoPickAlgorithm {
 
+    public List<ScoredMovie> generateRecommendations(
+            List<ParticipantPreference> participants,
+            List<Integer> contextGenreIds,
+            List<MovieCandidate> apiCandidates,
+            AlgorithmConfig config,
+            boolean useMmr
+    ) {
+        GroupProfile groupProfile = calculateGroupProfile(participants);
+
+        List<MovieCandidate> afterVeto = applyVeto(apiCandidates, groupProfile.vetoedGenreIds());
+        if (afterVeto.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Integer, Double> groupScores = new HashMap<>();
+        for (MovieCandidate movie : afterVeto) {
+            List<Double> personalScores = new ArrayList<>();
+            for (ParticipantPreference user : participants) {
+                personalScores.add(calculatePersonalScore(movie, user, config.lambda()));
+            }
+            groupScores.put(movie.movieId(), calculateGroupScore(personalScores, config.alpha()));
+        }
+
+        List<ScoredMovie> afterFinal = calculateFinalScore(
+                afterVeto, groupScores, contextGenreIds, config.beta(), config.rho()
+        );
+
+        if (useMmr) {
+            return diversify(afterFinal, config.M(), config.K(), config.mu());
+        } else {
+            return afterFinal.stream().limit(config.K()).collect(Collectors.toList());
+        }
+    }
+
     public GroupProfile calculateGroupProfile(List<ParticipantPreference> participants) {
         if (participants == null || participants.isEmpty()) {
             return new GroupProfile(Map.of(), Set.of(), 0, Map.of());
@@ -136,7 +170,70 @@ public class CoPickAlgorithm {
         return scoredMovies;
     }
 
+    public List<ScoredMovie> diversify(
+            List<ScoredMovie> candidates,
+            int M,
+            int K,
+            double mu
+    ) {
+        if (candidates == null || candidates.isEmpty()) {
+            return List.of();
+        }
 
+        List<ScoredMovie> pool = candidates.stream().limit(M).collect(Collectors.toList());
+
+        double maxFinal = pool.stream().mapToDouble(ScoredMovie::finalScore).max().orElse(0.0);
+        double minFinal = pool.stream().mapToDouble(ScoredMovie::finalScore).min().orElse(0.0);
+        double range = maxFinal - minFinal;
+
+        Map<Integer, Double> normalizedScores = new HashMap<>();
+        for (ScoredMovie movie : pool) {
+            double fHat = range > 0 ? (movie.finalScore() - minFinal) / range : 0.0;
+            normalizedScores.put(movie.movieId(), fHat);
+        }
+
+        List<ScoredMovie> selected = new ArrayList<>();
+        Set<Integer> selectedIds = new HashSet<>();
+        Map<Integer, Double> ms = new HashMap<>();
+
+        for (ScoredMovie movie : pool) {
+            ms.put(movie.movieId(), 0.0);
+        }
+
+        while (selected.size() < K && selected.size() < pool.size()) {
+            ScoredMovie bestMovie = null;
+            double bestMmr = Double.NEGATIVE_INFINITY;
+
+            for (ScoredMovie movie : pool) {
+                if (selectedIds.contains(movie.movieId())) continue;
+
+                double fHat = normalizedScores.get(movie.movieId());
+                double currentMs = ms.get(movie.movieId());
+
+                double mmr = mu * fHat - (1.0 - mu) * currentMs;
+
+                if (mmr > bestMmr) {
+                    bestMmr = mmr;
+                    bestMovie = movie;
+                }
+            }
+
+            if (bestMovie == null) break;
+
+            selected.add(bestMovie);
+            selectedIds.add(bestMovie.movieId());
+
+            for (ScoredMovie remaining : pool) {
+                if (selectedIds.contains(remaining.movieId())) continue;
+
+                double sim = jaccardSimilarity(bestMovie.genreIds(), remaining.genreIds());
+                double currentMs = ms.get(remaining.movieId());
+                ms.put(remaining.movieId(), Math.max(currentMs, sim));
+            }
+        }
+
+        return selected;
+    }
 
     private static Map<Integer, Double> getIntegerDoubleMap(Map<Integer, Double> averageWeights, Set<Integer> vetoedGenres) {
         Map<Integer, Double> influenceCoefficients = new HashMap<>();
@@ -161,4 +258,15 @@ public class CoPickAlgorithm {
         return influenceCoefficients;
     }
 
+    private double jaccardSimilarity(Set<Integer> setA, Set<Integer> setB) {
+        if (setA.isEmpty() && setB.isEmpty()) return 0.0;
+
+        Set<Integer> intersection = new HashSet<>(setA);
+        intersection.retainAll(setB);
+
+        Set<Integer> union = new HashSet<>(setA);
+        union.addAll(setB);
+
+        return (double) intersection.size() / union.size();
+    }
 }
