@@ -162,25 +162,20 @@ public class CoPickAlgorithm {
         }
 
         scoredMovies.sort(Comparator
-                .comparing(ScoredMovie::finalScore).reversed()
-                .thenComparing(ScoredMovie::qualityScore).reversed()
-                .thenComparingInt(ScoredMovie::movieId)
+                .comparing(ScoredMovie::finalScore)
+                .thenComparing(ScoredMovie::qualityScore)
+                .thenComparingInt(ScoredMovie::movieId).reversed()
         );
 
         return scoredMovies;
     }
 
-    public List<ScoredMovie> diversify(
-            List<ScoredMovie> candidates,
-            int M,
-            int K,
-            double mu
-    ) {
+    public List<ScoredMovie> diversify(List<ScoredMovie> candidates, int M, int K, double mu) {
         if (candidates == null || candidates.isEmpty()) {
             return List.of();
         }
 
-        List<ScoredMovie> pool = candidates.stream().limit(M).collect(Collectors.toList());
+        List<ScoredMovie> pool = candidates.stream().limit(M).toList();
 
         double maxFinal = pool.stream().mapToDouble(ScoredMovie::finalScore).max().orElse(0.0);
         double minFinal = pool.stream().mapToDouble(ScoredMovie::finalScore).min().orElse(0.0);
