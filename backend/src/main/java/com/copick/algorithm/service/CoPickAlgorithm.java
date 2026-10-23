@@ -17,16 +17,23 @@ public class CoPickAlgorithm {
     ) {
         GroupProfile groupProfile = calculateGroupProfile(participants);
 
-        List<MovieCandidate> afterVeto = applyVeto(apiCandidates, groupProfile.vetoedGenreIds());
+        Set<Integer> effectiveVeto = new HashSet<>(groupProfile.vetoedGenreIds());
+        if (contextGenreIds != null) {
+            effectiveVeto.removeAll(contextGenreIds);
+        }
+
+        List<MovieCandidate> afterVeto = applyVeto(apiCandidates, effectiveVeto);
         if (afterVeto.isEmpty()) {
             return List.of();
         }
+
+        Set<Integer> contextSet = new HashSet<>(contextGenreIds != null ? contextGenreIds : List.of());
 
         Map<Integer, Double> groupScores = new HashMap<>();
         for (MovieCandidate movie : afterVeto) {
             List<Double> personalScores = new ArrayList<>();
             for (ParticipantPreference user : participants) {
-                personalScores.add(calculatePersonalScore(movie, user, config.lambda()));
+                personalScores.add(calculatePersonalScore(movie, user, config.lambda(), contextSet, config.kappa()));
             }
             groupScores.put(movie.movieId(), calculateGroupScore(personalScores, config.alpha()));
         }
@@ -84,10 +91,19 @@ public class CoPickAlgorithm {
                 .toList();
     }
 
-    public double calculatePersonalScore(MovieCandidate movie, ParticipantPreference user, double lambda) {
+    public double calculatePersonalScore(
+            MovieCandidate movie,
+            ParticipantPreference user,
+            double lambda,
+            Set<Integer> contextGenreIds,
+            double kappa
+    ) {
         for (int genreId : movie.genreIds()) {
-            if (user.genreWeights().getOrDefault(genreId, 0.0) == -1.0) {
-                return -1.0;
+            double weight = user.genreWeights().getOrDefault(genreId, 0.0);
+            if (weight == -1.0) {
+                if (!contextGenreIds.contains(genreId)) {
+                    return -1.0;
+                }
             }
         }
 
@@ -98,6 +114,11 @@ public class CoPickAlgorithm {
 
         for (int genreId : movie.genreIds()) {
             double weight = user.genreWeights().getOrDefault(genreId, 0.0);
+
+            if (weight == -1.0 && contextGenreIds.contains(genreId)) {
+                weight = -kappa;
+            }
+
             sum += weight;
             if (weight < minWeight) {
                 minWeight = weight;
