@@ -80,21 +80,21 @@ const (
 	TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p"
 )
 
-type Client struct {
+type MovieClient struct {
 	client *http.Client
 	cfg    config.TMDB
 	logger *slog.Logger
 }
 
-func New(cfg config.TMDB, logger *slog.Logger) *Client {
-	return &Client{
+func NewMovieClient(cfg config.TMDB, logger *slog.Logger) *MovieClient {
+	return &MovieClient{
 		client: &http.Client{Timeout: cfg.TMDBTimeout},
 		cfg:    cfg,
 		logger: logger,
 	}
 }
 
-func (c *Client) fetchMovie(ctx context.Context, genre string, excludedGenres []string, amount int) ([]dto.Movie, error) {
+func (mc *MovieClient) fetchMovie(ctx context.Context, genre string, excludedGenres []string, amount int) ([]dto.Movie, error) {
 	exGenres := genresToIDString(excludedGenres, genreToId)
 
 	genreID, ok := genreToId[genre]
@@ -108,7 +108,7 @@ func (c *Client) fetchMovie(ctx context.Context, genre string, excludedGenres []
 
 	for len(allMovies) < amount {
 		url := fmt.Sprintf("%s/discover/movie?api_key=%s&language=ru-RU&with_genres=%s&without_genres=%s&sort_by=%s&vote_average.gte=%.1f&vote_count.gte=%d&page=%d",
-			c.cfg.URL, apiKey, genreID, exGenres, sort_by, vote_average, vote_count, page,
+			mc.cfg.URL, apiKey, genreID, exGenres, sort_by, vote_average, vote_count, page,
 		)
 
 		var tmdbResp struct {
@@ -120,7 +120,7 @@ func (c *Client) fetchMovie(ctx context.Context, genre string, excludedGenres []
 			return nil, fmt.Errorf("create request: %w", err)
 		}
 
-		resp, err := c.client.Do(req)
+		resp, err := mc.client.Do(req)
 		if err != nil {
 			return nil, fmt.Errorf("do request: %w", err)
 		}
@@ -183,11 +183,11 @@ func (c *Client) fetchMovie(ctx context.Context, genre string, excludedGenres []
 	return allMovies, nil
 }
 
-func (c *Client) FetchMovies(ctx context.Context, req dto.DiscoverRequest) (*dto.DiscoverResponse, error) {
+func (mc *MovieClient) FetchMovies(ctx context.Context, req dto.DiscoverRequest) (*dto.DiscoverResponse, error) {
 	var allMovies []dto.Movie
 
 	for _, pref := range req.Preferences {
-		movies, err := c.fetchMovie(ctx, pref.Genre, req.ExcludedGenres, pref.Count)
+		movies, err := mc.fetchMovie(ctx, pref.Genre, req.ExcludedGenres, pref.Count)
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch genre '%s': %w", pref.Genre, err)
 		}
