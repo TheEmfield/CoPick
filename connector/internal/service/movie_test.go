@@ -40,8 +40,8 @@ func TestMovieClient_FetchMovies_Success(t *testing.T) {
 
 	client := NewMovieClient(config.TMDB{URL: mockServer.URL, TMDBTimeout: 5 * time.Second}, discardLogger())
 	req := dto.DiscoverRequest{
-		Preferences:    []dto.GenrePreference{{Genre: "action", Count: 1}},
-		ExcludedGenres: []string{"horror"},
+		Preferences:    []dto.GenrePreference{{Genre: "Боевик", Count: 1}},
+		ExcludedGenres: []string{"Ужасы"},
 	}
 
 	resp, err := client.FetchMovies(context.Background(), req)
@@ -74,7 +74,7 @@ func TestMovieClient_FetchMovies_APIError(t *testing.T) {
 	defer mockServer.Close()
 
 	client := NewMovieClient(config.TMDB{URL: mockServer.URL}, discardLogger())
-	req := dto.DiscoverRequest{Preferences: []dto.GenrePreference{{Genre: "action", Count: 1}}}
+	req := dto.DiscoverRequest{Preferences: []dto.GenrePreference{{Genre: "Боевик", Count: 1}}}
 
 	resp, err := client.FetchMovies(context.Background(), req)
 
@@ -92,7 +92,7 @@ func TestMovieClient_FetchMovies_EmptyResults(t *testing.T) {
 	defer mockServer.Close()
 
 	client := NewMovieClient(config.TMDB{URL: mockServer.URL}, discardLogger())
-	req := dto.DiscoverRequest{Preferences: []dto.GenrePreference{{Genre: "action", Count: 1}}}
+	req := dto.DiscoverRequest{Preferences: []dto.GenrePreference{{Genre: "Боевик", Count: 1}}}
 
 	resp, err := client.FetchMovies(context.Background(), req)
 
@@ -117,7 +117,7 @@ func TestMovieClient_FetchMovies_Deduplication(t *testing.T) {
 	defer mockServer.Close()
 
 	client := NewMovieClient(config.TMDB{URL: mockServer.URL}, discardLogger())
-	req := dto.DiscoverRequest{Preferences: []dto.GenrePreference{{Genre: "action", Count: 2}}}
+	req := dto.DiscoverRequest{Preferences: []dto.GenrePreference{{Genre: "Боевик", Count: 2}}}
 
 	resp, err := client.FetchMovies(context.Background(), req)
 
@@ -142,7 +142,7 @@ func TestMovieClient_FetchMovies_InvalidDate(t *testing.T) {
 	defer mockServer.Close()
 
 	client := NewMovieClient(config.TMDB{URL: mockServer.URL}, discardLogger())
-	req := dto.DiscoverRequest{Preferences: []dto.GenrePreference{{Genre: "action", Count: 1}}}
+	req := dto.DiscoverRequest{Preferences: []dto.GenrePreference{{Genre: "Боевик", Count: 1}}}
 
 	resp, err := client.FetchMovies(context.Background(), req)
 
