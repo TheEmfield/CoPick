@@ -8,48 +8,52 @@ import java.util.stream.Collectors;
 
 public class CoPickAlgorithm {
 
+    private final AlgorithmConfig config;
+
+    public CoPickAlgorithm(AlgorithmConfig config) {
+        this.config = config;
+    }
+
+    public CoPickAlgorithm() {
+        this(new AlgorithmConfig());
+    }
+
     public List<ScoredMovie> generateRecommendations(
             List<ParticipantPreference> participants,
             List<Integer> contextGenreIds,
-            List<MovieCandidate> apiCandidates,
-            AlgorithmConfig config,
+            List<MovieCandidate> candidates,
             boolean useMmr
     ) {
-        GroupProfile groupProfile = calculateGroupProfile(participants);
+        GroupProfile groupProfile = calculateGroupProfile(participants, contextGenreIds);
 
-        Set<Integer> effectiveVeto = new HashSet<>(groupProfile.vetoedGenreIds());
-        if (contextGenreIds != null) {
-            effectiveVeto.removeAll(contextGenreIds);
-        }
-
-        List<MovieCandidate> afterVeto = applyVeto(apiCandidates, effectiveVeto);
-        if (afterVeto.isEmpty()) {
+        if (candidates.isEmpty()) {
             return List.of();
         }
 
         Set<Integer> contextSet = new HashSet<>(contextGenreIds != null ? contextGenreIds : List.of());
 
         Map<Integer, Double> groupScores = new HashMap<>();
-        for (MovieCandidate movie : afterVeto) {
+        for (MovieCandidate movie : candidates) {
             List<Double> personalScores = new ArrayList<>();
             for (ParticipantPreference user : participants) {
-                personalScores.add(calculatePersonalScore(movie, user, config.lambda(), contextSet, config.kappa()));
+                personalScores.add(calculatePersonalScore(movie, user, contextSet));
             }
-            groupScores.put(movie.movieId(), calculateGroupScore(personalScores, config.alpha()));
+            groupScores.put(movie.movieId(), calculateGroupScore(personalScores));
         }
 
-        List<ScoredMovie> afterFinal = calculateFinalScore(
-                afterVeto, groupScores, contextGenreIds, config.beta(), config.rho()
-        );
+        List<ScoredMovie> afterFinal = calculateFinalScore(candidates, groupScores, contextSet);
 
         if (useMmr) {
-            return diversify(afterFinal, config.M(), config.K(), config.mu());
+            return diversify(afterFinal);
         } else {
             return afterFinal.stream().limit(config.K()).collect(Collectors.toList());
         }
     }
 
-    public GroupProfile calculateGroupProfile(List<ParticipantPreference> participants) {
+    public GroupProfile calculateGroupProfile(
+            List<ParticipantPreference> participants,
+            List<Integer> contextGenreIds
+    ) {
         if (participants == null || participants.isEmpty()) {
             return new GroupProfile(Map.of(), Set.of(), 0, Map.of());
         }
@@ -65,7 +69,7 @@ public class CoPickAlgorithm {
 
                 sumWeights.merge(genreId, weight, Double::sum);
 
-                if (weight == -1.0) {
+                if (weight == -1.0 && !contextGenreIds.contains(genreId)) {
                     vetoedGenres.add(genreId);
                 }
             }
@@ -81,42 +85,25 @@ public class CoPickAlgorithm {
         return new GroupProfile(averageWeights, vetoedGenres, n, influenceCoefficients);
     }
 
-    public List<MovieCandidate> applyVeto(List<MovieCandidate> candidates, Set<Integer> vetoedGenreIds) {
-        if (candidates == null || vetoedGenreIds == null || vetoedGenreIds.isEmpty()) {
-            return candidates;
-        }
-
-        return candidates.stream()
-                .filter(movie -> Collections.disjoint(movie.genreIds(), vetoedGenreIds))
-                .toList();
-    }
-
-    public double calculatePersonalScore(
+    private double calculatePersonalScore(
             MovieCandidate movie,
             ParticipantPreference user,
-            double lambda,
-            Set<Integer> contextGenreIds,
-            double kappa
+            Set<Integer> contextGenreIds
     ) {
+        int count = movie.genreIds().size();
+        if (count == 0) return 0.0;
+
+        double sum = 0.0;
+        double minWeight = 0.0;
+
         for (int genreId : movie.genreIds()) {
             double weight = user.genreWeights().getOrDefault(genreId, 0.0);
+
             if (weight == -1.0) {
                 if (!contextGenreIds.contains(genreId)) {
                     return -1.0;
                 }
-            }
-        }
-
-        double sum = 0.0;
-        double minWeight = 0.0;
-        int count = movie.genreIds().size();
-        if (count == 0) return 0.0;
-
-        for (int genreId : movie.genreIds()) {
-            double weight = user.genreWeights().getOrDefault(genreId, 0.0);
-
-            if (weight == -1.0 && contextGenreIds.contains(genreId)) {
-                weight = -kappa;
+                weight = -config.kappa();
             }
 
             sum += weight;
@@ -126,13 +113,12 @@ public class CoPickAlgorithm {
         }
 
         double mean = sum / count;
-        double penalty = lambda * Math.min(0, minWeight);
-        double rawScore = mean + penalty;
+        double penalty = config.lambda() * Math.min(0, minWeight);
+        return Math.max(-1.0, mean + penalty);
 
-        return Math.max(-1.0, Math.min(1.0, rawScore));
     }
 
-    public double calculateGroupScore(List<Double> personalScores, double alpha) {
+    private double calculateGroupScore(List<Double> personalScores) {
         if (personalScores == null || personalScores.isEmpty()) {
             return 0.0;
         }
@@ -146,21 +132,19 @@ public class CoPickAlgorithm {
 
         int k = Math.max(1, n / 4);
 
-        double lowmeanK = sorted.stream()
+        double lowmeank = sorted.stream()
                 .limit(k)
                 .mapToDouble(Double::doubleValue)
                 .average()
                 .orElse(0.0);
 
-        return alpha * mean + (1.0 - alpha) * lowmeanK;
+        return config.alpha() * mean + (1.0 - config.alpha()) * lowmeank;
     }
 
-    public List<ScoredMovie> calculateFinalScore(
+    private List<ScoredMovie> calculateFinalScore(
             List<MovieCandidate> candidates,
             Map<Integer, Double> groupScores,
-            List<Integer> contextGenreIds,
-            double beta,
-            double rho
+            Set<Integer> contextGenreIds
     ) {
         Set<Integer> contextSet = new HashSet<>(contextGenreIds != null ? contextGenreIds : List.of());
 
@@ -177,7 +161,7 @@ public class CoPickAlgorithm {
                 q = (movie.rating() - 5.0) / 10.0;
             }
 
-            double finalScore = g + beta * ctx + rho * q;
+            double finalScore = g + config.beta() * ctx + config.rho() * q;
 
             scoredMovies.add(new ScoredMovie(movie.movieId(), finalScore, movie.genreIds(), q));
         }
@@ -191,12 +175,12 @@ public class CoPickAlgorithm {
         return scoredMovies;
     }
 
-    public List<ScoredMovie> diversify(List<ScoredMovie> candidates, int M, int K, double mu) {
+    private List<ScoredMovie> diversify(List<ScoredMovie> candidates) {
         if (candidates == null || candidates.isEmpty()) {
             return List.of();
         }
 
-        List<ScoredMovie> pool = candidates.stream().limit(M).toList();
+        List<ScoredMovie> pool = candidates.stream().limit(config.M()).toList();
 
         double maxFinal = pool.stream().mapToDouble(ScoredMovie::finalScore).max().orElse(0.0);
         double minFinal = pool.stream().mapToDouble(ScoredMovie::finalScore).min().orElse(0.0);
@@ -216,7 +200,7 @@ public class CoPickAlgorithm {
             ms.put(movie.movieId(), 0.0);
         }
 
-        while (selected.size() < K && selected.size() < pool.size()) {
+        while (selected.size() < config.K() && selected.size() < pool.size()) {
             ScoredMovie bestMovie = null;
             double bestMmr = Double.NEGATIVE_INFINITY;
 
@@ -226,7 +210,7 @@ public class CoPickAlgorithm {
                 double fHat = normalizedScores.get(movie.movieId());
                 double currentMs = ms.get(movie.movieId());
 
-                double mmr = mu * fHat - (1.0 - mu) * currentMs;
+                double mmr = config.mu() * fHat - (1.0 - config.mu()) * currentMs;
 
                 if (mmr > bestMmr) {
                     bestMmr = mmr;
