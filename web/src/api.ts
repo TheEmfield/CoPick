@@ -454,3 +454,207 @@ export const api = {
     );
   },
 };
+
+/*const BASE_URL = '/api/v1'; // Потом вместо моков, когда бэк появится
+
+function getHeaders(): HeadersInit {
+  const token = localStorage.getItem('copick_token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+export const api = {
+  getToken(): string | null {
+    return localStorage.getItem('copick_token');
+  },
+
+  async register(nickname: string, password: string) {
+    const res = await fetch(`${BASE_URL}/auth/register`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ nickname, password }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async login(nickname: string, password: string) {
+    const res = await fetch(`${BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ nickname, password }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async updateMe(updates: { nickname?: string; password?: string }) {
+    const res = await fetch(`${BASE_URL}/auth/me`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  logout(): void {
+    localStorage.removeItem('copick_token');
+    localStorage.removeItem('copick_profile');
+  },
+
+  async getGroups() {
+    const res = await fetch(`${BASE_URL}/groups`, { headers: getHeaders() });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async createGroup(name: string, ageRestriction: number | null) {
+    const res = await fetch(`${BASE_URL}/groups`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ name, ageRestriction }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async joinGroup(inviteCode: string) {
+    const res = await fetch(`${BASE_URL}/groups/join`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ inviteCode }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async getGroupDetail(groupId: number) {
+    const res = await fetch(`${BASE_URL}/groups/${groupId}`, { headers: getHeaders() });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async refreshInviteCode(groupId: number) {
+    const res = await fetch(`${BASE_URL}/groups/${groupId}/invite`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async kickMember(groupId: number, profileId: number) {
+    const res = await fetch(`${BASE_URL}/groups/${groupId}/members/${profileId}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error(await res.text());
+  },
+
+  async leaveGroup(groupId: number) {
+    const res = await fetch(`${BASE_URL}/groups/${groupId}/leave`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error(await res.text());
+  },
+
+  async deleteGroup(groupId: number) {
+    const res = await fetch(`${BASE_URL}/groups/${groupId}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error(await res.text());
+  },
+
+  async getGenres() {
+    const res = await fetch(`${BASE_URL}/genres`, { headers: getHeaders() });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async getPreferences() {
+    const res = await fetch(`${BASE_URL}/profiles/me/preferences`, { headers: getHeaders() });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async updatePreferences(items: { genreId: number; weight: number }[]) {
+    const res = await fetch(`${BASE_URL}/profiles/me/preferences`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify({ preferences: items }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async deletePreference(genreId: number) {
+    const res = await fetch(`${BASE_URL}/profiles/me/preferences/${genreId}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error(await res.text());
+  },
+
+  async deleteAllPreferences() {
+    const res = await fetch(`${BASE_URL}/profiles/me/preferences`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error(await res.text());
+  },
+
+  async getRecommendations(
+    groupId: number,
+    opts: { types?: string[]; limit?: number; profileIds?: number[]; mood?: string; genreFilter?: string[] } = {}
+  ) {
+    const params = new URLSearchParams();
+    if (opts.types?.length) params.set('types', opts.types.join(','));
+    if (opts.limit) params.set('limit', String(opts.limit));
+    if (opts.profileIds?.length) params.set('profileIds', opts.profileIds.join(','));
+    if (opts.mood) params.set('mood', opts.mood);
+    if (opts.genreFilter?.length) params.set('genres', opts.genreFilter.join(','));
+
+    const res = await fetch(`${BASE_URL}/groups/${groupId}/recommendations?${params}`, {
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async getGroupStats(groupId: number) {
+    const res = await fetch(`${BASE_URL}/groups/${groupId}/recommendations/stats`, {
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async getSaved() {
+    const res = await fetch(`${BASE_URL}/profiles/me/saved`, { headers: getHeaders() });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async saveItem(content: ContentItem, list: 'watchlist' | 'liked') {
+    const res = await fetch(`${BASE_URL}/profiles/me/saved`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ content, list }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  async removeSaved(id: number) {
+    const res = await fetch(`${BASE_URL}/profiles/me/saved/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error(await res.text());
+  },
+};*/

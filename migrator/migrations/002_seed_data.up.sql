@@ -3,7 +3,7 @@ VALUES ('movie')
 ON CONFLICT (content_name) DO NOTHING;
 
 INSERT INTO genres (genre_name, content_type)
-SELECT 'Боевик', type_id FRM content_types WHERE content_name = 'movie' UNION ALL
+SELECT 'Боевик', type_id FROM content_types WHERE content_name = 'movie' UNION ALL
 SELECT 'Приключения', type_id FROM content_types WHERE content_name = 'movie' UNION ALL
 SELECT 'Мультфильм', type_id FROM content_types WHERE content_name = 'movie' UNION ALL
 SELECT 'Комедия', type_id FROM content_types WHERE content_name = 'movie' UNION ALL
