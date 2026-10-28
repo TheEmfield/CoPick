@@ -1,10 +1,10 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useContext } from 'react'
 import { AuthContext } from './context/AuthContext'
-import AuthPage from './pages/Auth'
-import ProfilePage from './pages/Profile'
-import GroupsPage from './pages/Groups'
-import GroupDetailPage from './pages/GroupDetail'
+import { AuthPage } from './pages/Auth'
+import { ProfilePage } from './pages/Profile'
+import { GroupsPage } from './pages/Groups'
+import { GroupDetailPage } from './pages/GroupDetail'
 
 const ProtectedRoute = ({ children }) => {
   const { user } = useContext(AuthContext)

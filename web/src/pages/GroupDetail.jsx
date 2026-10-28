@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { groupsApi, recommendationsApi } from '../services/api'
-import { MovieCard, VibeModal } from '../components'
+import { MovieCard } from '../components/MovieCard'
+import { VibeModal } from '../components/VibeModal'
 
 export const GroupDetailPage = () => {
   const { id } = useParams()
