@@ -17,4 +17,6 @@ public interface ProfilePreferenceRepository
     @Query("select p from ProfilePreference p where p.id.genreId = :genreId")
     List<ProfilePreference> findByGenreId(@Param("genreId") Integer genreId);
     long deleteByProfileId(Integer profileId);
+
+    List<ProfilePreference> findByIdProfileIdIn(List<Integer> profileIds);
 }
