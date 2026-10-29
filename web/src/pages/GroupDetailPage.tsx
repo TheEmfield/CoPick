@@ -10,7 +10,7 @@ import { useToast } from '../components/Toast';
 import { useAuth } from '../auth';
 import {
   ArrowLeft, Copy, RefreshCw, Crown, UserMinus, LogOut, Trash2,
-  Sparkles, Users, Film, Tv, Gamepad2, ChevronDown, Layers,
+  Sparkles, Users, Film, Tv, Gamepad2, ChevronDown, Layers, Heart,
 } from 'lucide-react';
 
 const TYPE_ICONS: Record<string, typeof Film> = {
@@ -28,15 +28,15 @@ export function GroupDetailPage() {
 
   const [detail, setDetail] = useState<GroupDetail | null>(null);
   const [recs, setRecs] = useState<RecommendationItem[]>([]);
-  const [saved, setSaved] = useState<SavedItem[]>([]);
+  const [likes, setLikes] = useState<SavedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [orderOpen, setOrderOpen] = useState(false);
 
   const isOwner = profile?.profileId === detail?.ownerId;
 
-  const loadSaved = useCallback(async () => {
-    try { setSaved(await api.getSaved()); } catch { /* noop */ }
-  }, []);
+  const loadLikes = useCallback(async () => {
+    try { setLikes(await api.getGroupLikes(groupId)); } catch { /* noop */ }
+  }, [groupId]);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -47,31 +47,25 @@ export function GroupDetailPage() {
       ]);
       setDetail(d);
       setRecs(r.items);
-      await loadSaved();
+      await loadLikes();
     } catch {
       toast('Группа не найдена', 'error');
       navigate('/groups');
     } finally {
       setLoading(false);
     }
-  }, [groupId, navigate, toast, loadSaved]);
+  }, [groupId, navigate, toast, loadLikes]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  const savedIds = {
-    watchlist: new Set(saved.filter((s) => s.list === 'watchlist').map((s) => s.content.externalId)),
-    liked: new Set(saved.filter((s) => s.list === 'liked').map((s) => s.content.externalId)),
-  };
+  const likedIds = new Set(likes.map((s) => s.content.externalId));
 
-  const toggleSave = async (content: ContentItem, list: 'watchlist' | 'liked') => {
-    const existing = saved.find((s) => s.content.externalId === content.externalId && s.list === list);
-    if (existing) {
-      await api.removeSaved(existing.id);
-      setSaved((prev) => prev.filter((s) => s.id !== existing.id));
-    } else {
-      const item = await api.saveItem(content, list);
-      setSaved((prev) => [...prev, item]);
-      toast(list === 'watchlist' ? 'Добавлено в «Смотреть позже»' : 'Добавлено в «Понравившиеся»', 'success');
+  const toggleLike = async (content: ContentItem) => {
+    try {
+      const updated = await api.toggleGroupLike(groupId, content);
+      setLikes(updated);
+    } catch {
+      toast('Не удалось обновить', 'error');
     }
   };
 
@@ -180,9 +174,8 @@ export function GroupDetailPage() {
                 <ContentCard
                   key={item.content.externalId}
                   item={item}
-                  savedWatchlist={savedIds.watchlist.has(item.content.externalId)}
-                  savedLiked={savedIds.liked.has(item.content.externalId)}
-                  onToggleSave={toggleSave}
+                  liked={likedIds.has(item.content.externalId)}
+                  onToggleLike={toggleLike}
                 />
               ))}
             </div>
@@ -202,6 +195,14 @@ export function GroupDetailPage() {
             isOwner={isOwner}
             onKick={kickMember}
           />
+          <Button variant="secondary" className="w-full" icon={<Heart className="h-4 w-4" />} onClick={() => navigate(`/groups/${groupId}/likes`)}>
+            Понравившиеся
+            {likes.length > 0 && (
+              <span className="ml-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5">
+                {likes.length}
+              </span>
+            )}
+          </Button>
         </div>
       </div>
 

@@ -2,17 +2,17 @@ import { useEffect, useState, useCallback } from 'react';
 import { api } from '../api';
 import { useAuth } from '../auth';
 import { useTheme } from '../theme';
-import type { Genre, Preference, SavedItem, ContentType } from '../types';
+import type { Genre, Preference, ContentType } from '../types';
 import { CONTENT_TYPE_LABEL } from '../types';
 import { Button } from '../components/Button';
 import { Spinner } from '../components/Spinner';
 import { useToast } from '../components/Toast';
 import {
-  User, Palette, Sliders, Bookmark, Heart, Trash2, Save,
+  User, Palette, Sliders, Trash2, Save,
   Snowflake, Sun, Moon, Trees, Check,
 } from 'lucide-react';
 
-type Tab = 'account' | 'preferences' | 'theme' | 'saved';
+type Tab = 'account' | 'preferences' | 'theme';
 
 const WEIGHT_OPTIONS: { value: number; label: string }[] = [
   { value: -1, label: 'Не нравится' },
@@ -29,7 +29,6 @@ export function ProfilePage() {
     { id: 'account', label: 'Аккаунт', icon: User },
     { id: 'preferences', label: 'Предпочтения', icon: Sliders },
     { id: 'theme', label: 'Тема', icon: Palette },
-    { id: 'saved', label: 'Сохранённое', icon: Bookmark },
   ];
 
   return (
@@ -61,7 +60,6 @@ export function ProfilePage() {
           {tab === 'account' && <AccountTab />}
           {tab === 'preferences' && <PreferencesTab />}
           {tab === 'theme' && <ThemeTab />}
-          {tab === 'saved' && <SavedTab />}
         </div>
       </div>
     </div>
@@ -373,127 +371,5 @@ function ThemeTab() {
         );
       })}
     </div>
-  );
-}
-
-function SavedTab() {
-  const [saved, setSaved] = useState<SavedItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'watchlist' | 'liked'>('all');
-  const toast = useToast();
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      setSaved(await api.getSaved());
-    } catch {
-      toast('Не удалось загрузить', 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const remove = async (id: number) => {
-    await api.removeSaved(id);
-    setSaved((prev) => prev.filter((s) => s.id !== id));
-  };
-
-  const filtered = saved.filter((s) => filter === 'all' || s.list === filter);
-
-  if (loading) {
-    return <div className="flex justify-center py-10"><Spinner className="text-primary" /></div>;
-  }
-
-  return (
-    <div>
-      <div className="mb-5 flex gap-2">
-        <FilterBtn active={filter === 'all'} onClick={() => setFilter('all')} label={`Все (${saved.length})`} />
-        <FilterBtn
-          active={filter === 'watchlist'}
-          onClick={() => setFilter('watchlist')}
-          label={`Смотреть позже (${saved.filter((s) => s.list === 'watchlist').length})`}
-          icon={<Bookmark className="h-3.5 w-3.5" />}
-        />
-        <FilterBtn
-          active={filter === 'liked'}
-          onClick={() => setFilter('liked')}
-          label={`Понравившиеся (${saved.filter((s) => s.list === 'liked').length})`}
-          icon={<Heart className="h-3.5 w-3.5" />}
-        />
-      </div>
-
-      {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-app py-16 text-center">
-          <Bookmark className="h-10 w-10 text-muted mb-3" />
-          <p className="text-muted">Здесь пока пусто</p>
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((item) => (
-            <div key={item.id} className="group relative overflow-hidden rounded-2xl bg-surface border border-app shadow-soft">
-              <div className="flex gap-3 p-3">
-                <img
-                  src={item.content.posterUrl}
-                  alt={item.content.title}
-                  loading="lazy"
-                  className="h-28 w-20 shrink-0 rounded-lg object-cover"
-                />
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <h3 className="text-sm font-semibold text-app line-clamp-2">{item.content.title}</h3>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {item.content.genres.slice(0, 2).map((g) => (
-                      <span key={g} className="rounded bg-surface-2 text-muted px-1.5 py-0.5 text-[10px] uppercase">
-                        {g}
-                      </span>
-                    ))}
-                  </div>
-                  <p className="mt-1.5 text-xs text-muted line-clamp-2 flex-1">{item.content.overview}</p>
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className={`inline-flex items-center gap-1 text-xs ${
-                      item.list === 'watchlist' ? 'text-primary' : 'text-red-500'
-                    }`}>
-                      {item.list === 'watchlist' ? <Bookmark className="h-3 w-3 fill-current" /> : <Heart className="h-3 w-3 fill-current" />}
-                      {item.list === 'watchlist' ? 'Смотреть позже' : 'Понравилось'}
-                    </span>
-                    <button
-                      onClick={() => remove(item.id)}
-                      className="rounded-lg p-1 text-muted hover:bg-red-50 hover:text-red-600 transition-colors"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function FilterBtn({
-  active,
-  onClick,
-  label,
-  icon,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  icon?: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition-all whitespace-nowrap ${
-        active ? 'bg-primary text-white shadow-soft' : 'bg-surface-2 text-muted hover:text-app'
-      }`}
-    >
-      {icon}
-      {label}
-    </button>
   );
 }

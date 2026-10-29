@@ -4,7 +4,6 @@ import type {
   GroupDetail,
   Preference,
   RecommendationResponse,
-  GroupStats,
   SavedItem,
   ContentItem,
 } from './types';
@@ -81,11 +80,11 @@ function setPrefsStore(p: Record<number, Preference[]>): void {
   setStore('copick_prefs', p);
 }
 
-function getSavedStore(): Record<number, SavedItem[]> {
-  return getStore<Record<number, SavedItem[]>>('copick_saved') ?? {};
+function getGroupLikesStore(): Record<number, SavedItem[]> {
+  return getStore<Record<number, SavedItem[]>>('copick_group_likes') ?? {};
 }
-function setSavedStore(s: Record<number, SavedItem[]>): void {
-  setStore('copick_saved', s);
+function setGroupLikesStore(s: Record<number, SavedItem[]>): void {
+  setStore('copick_group_likes', s);
 }
 
 export const api = {
@@ -397,53 +396,29 @@ export const api = {
     return delay({ items, total: items.length });
   },
 
-  async getGroupStats(groupId: number): Promise<GroupStats> {
-    return delay({
-      memberCount: 4,
-      topGenres: [
-        { genreName: 'action', avgWeight: 0.75, minWeight: 0.3 },
-        { genreName: 'comedy', avgWeight: 0.6, minWeight: -0.2 },
-        { genreName: 'drama', avgWeight: 0.45, minWeight: 0.1 },
-      ],
-      bannedGenres: ['horror'],
-      suggestedMood: 'intense',
-    });
+  async getGroupLikes(groupId: number): Promise<SavedItem[]> {
+    const likes = getGroupLikesStore();
+    return delay(likes[groupId] ?? []);
   },
 
-  async getSaved(): Promise<SavedItem[]> {
-    const profile = getStore<StoredProfile>(PROFILE_KEY)!;
-    const saved = getSavedStore();
-    return delay(saved[profile.profileId] ?? []);
-  },
-
-  async saveItem(content: ContentItem, list: 'watchlist' | 'liked'): Promise<SavedItem> {
-    const profile = getStore<StoredProfile>(PROFILE_KEY)!;
-    const saved = getSavedStore();
-    const list_ = saved[profile.profileId] ?? [];
-    const existing = list_.find(
-      (s) => s.content.externalId === content.externalId && s.list === list
-    );
-    if (existing) return delay(existing);
-    const item: SavedItem = {
-      id: list_.reduce((max, s) => Math.max(max, s.id), 0) + 1,
-      content,
-      list,
-      addedAt: new Date().toISOString(),
-    };
-    list_.push(item);
-    saved[profile.profileId] = list_;
-    setSavedStore(saved);
-    return delay(item);
-  },
-
-  async removeSaved(id: number): Promise<void> {
-    const profile = getStore<StoredProfile>(PROFILE_KEY)!;
-    const saved = getSavedStore();
-    saved[profile.profileId] = (saved[profile.profileId] ?? []).filter(
-      (s) => s.id !== id
-    );
-    setSavedStore(saved);
-    return delay(undefined);
+  async toggleGroupLike(groupId: number, content: ContentItem): Promise<SavedItem[]> {
+    const likes = getGroupLikesStore();
+    const list = likes[groupId] ?? [];
+    const existing = list.find((s) => s.content.externalId === content.externalId);
+    if (existing) {
+      likes[groupId] = list.filter((s) => s.id !== existing.id);
+    } else {
+      const item: SavedItem = {
+        id: list.reduce((max, s) => Math.max(max, s.id), 0) + 1,
+        content,
+        list: 'liked',
+        addedAt: new Date().toISOString(),
+      };
+      list.push(item);
+      likes[groupId] = list;
+    }
+    setGroupLikesStore(likes);
+    return delay(likes[groupId]);
   },
 
   async searchContent(query: string): Promise<ContentItem[]> {
@@ -454,207 +429,3 @@ export const api = {
     );
   },
 };
-
-/*const BASE_URL = '/api/v1'; // Потом вместо моков, когда бэк появится
-
-function getHeaders(): HeadersInit {
-  const token = localStorage.getItem('copick_token');
-  return {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
-
-export const api = {
-  getToken(): string | null {
-    return localStorage.getItem('copick_token');
-  },
-
-  async register(nickname: string, password: string) {
-    const res = await fetch(`${BASE_URL}/auth/register`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify({ nickname, password }),
-    });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
-  },
-
-  async login(nickname: string, password: string) {
-    const res = await fetch(`${BASE_URL}/auth/login`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify({ nickname, password }),
-    });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
-  },
-
-  async updateMe(updates: { nickname?: string; password?: string }) {
-    const res = await fetch(`${BASE_URL}/auth/me`, {
-      method: 'PATCH',
-      headers: getHeaders(),
-      body: JSON.stringify(updates),
-    });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
-  },
-
-  logout(): void {
-    localStorage.removeItem('copick_token');
-    localStorage.removeItem('copick_profile');
-  },
-
-  async getGroups() {
-    const res = await fetch(`${BASE_URL}/groups`, { headers: getHeaders() });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
-  },
-
-  async createGroup(name: string, ageRestriction: number | null) {
-    const res = await fetch(`${BASE_URL}/groups`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify({ name, ageRestriction }),
-    });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
-  },
-
-  async joinGroup(inviteCode: string) {
-    const res = await fetch(`${BASE_URL}/groups/join`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify({ inviteCode }),
-    });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
-  },
-
-  async getGroupDetail(groupId: number) {
-    const res = await fetch(`${BASE_URL}/groups/${groupId}`, { headers: getHeaders() });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
-  },
-
-  async refreshInviteCode(groupId: number) {
-    const res = await fetch(`${BASE_URL}/groups/${groupId}/invite`, {
-      method: 'POST',
-      headers: getHeaders(),
-    });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
-  },
-
-  async kickMember(groupId: number, profileId: number) {
-    const res = await fetch(`${BASE_URL}/groups/${groupId}/members/${profileId}`, {
-      method: 'DELETE',
-      headers: getHeaders(),
-    });
-    if (!res.ok) throw new Error(await res.text());
-  },
-
-  async leaveGroup(groupId: number) {
-    const res = await fetch(`${BASE_URL}/groups/${groupId}/leave`, {
-      method: 'POST',
-      headers: getHeaders(),
-    });
-    if (!res.ok) throw new Error(await res.text());
-  },
-
-  async deleteGroup(groupId: number) {
-    const res = await fetch(`${BASE_URL}/groups/${groupId}`, {
-      method: 'DELETE',
-      headers: getHeaders(),
-    });
-    if (!res.ok) throw new Error(await res.text());
-  },
-
-  async getGenres() {
-    const res = await fetch(`${BASE_URL}/genres`, { headers: getHeaders() });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
-  },
-
-  async getPreferences() {
-    const res = await fetch(`${BASE_URL}/profiles/me/preferences`, { headers: getHeaders() });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
-  },
-
-  async updatePreferences(items: { genreId: number; weight: number }[]) {
-    const res = await fetch(`${BASE_URL}/profiles/me/preferences`, {
-      method: 'PUT',
-      headers: getHeaders(),
-      body: JSON.stringify({ preferences: items }),
-    });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
-  },
-
-  async deletePreference(genreId: number) {
-    const res = await fetch(`${BASE_URL}/profiles/me/preferences/${genreId}`, {
-      method: 'DELETE',
-      headers: getHeaders(),
-    });
-    if (!res.ok) throw new Error(await res.text());
-  },
-
-  async deleteAllPreferences() {
-    const res = await fetch(`${BASE_URL}/profiles/me/preferences`, {
-      method: 'DELETE',
-      headers: getHeaders(),
-    });
-    if (!res.ok) throw new Error(await res.text());
-  },
-
-  async getRecommendations(
-    groupId: number,
-    opts: { types?: string[]; limit?: number; profileIds?: number[]; mood?: string; genreFilter?: string[] } = {}
-  ) {
-    const params = new URLSearchParams();
-    if (opts.types?.length) params.set('types', opts.types.join(','));
-    if (opts.limit) params.set('limit', String(opts.limit));
-    if (opts.profileIds?.length) params.set('profileIds', opts.profileIds.join(','));
-    if (opts.mood) params.set('mood', opts.mood);
-    if (opts.genreFilter?.length) params.set('genres', opts.genreFilter.join(','));
-
-    const res = await fetch(`${BASE_URL}/groups/${groupId}/recommendations?${params}`, {
-      headers: getHeaders(),
-    });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
-  },
-
-  async getGroupStats(groupId: number) {
-    const res = await fetch(`${BASE_URL}/groups/${groupId}/recommendations/stats`, {
-      headers: getHeaders(),
-    });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
-  },
-
-  async getSaved() {
-    const res = await fetch(`${BASE_URL}/profiles/me/saved`, { headers: getHeaders() });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
-  },
-
-  async saveItem(content: ContentItem, list: 'watchlist' | 'liked') {
-    const res = await fetch(`${BASE_URL}/profiles/me/saved`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify({ content, list }),
-    });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
-  },
-
-  async removeSaved(id: number) {
-    const res = await fetch(`${BASE_URL}/profiles/me/saved/${id}`, {
-      method: 'DELETE',
-      headers: getHeaders(),
-    });
-    if (!res.ok) throw new Error(await res.text());
-  },
-};*/

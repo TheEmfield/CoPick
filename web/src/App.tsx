@@ -6,6 +6,7 @@ import { AppShell } from './components/AppShell';
 import { AuthPage } from './pages/AuthPage';
 import { GroupsPage } from './pages/GroupsPage';
 import { GroupDetailPage } from './pages/GroupDetailPage';
+import { GroupLikesPage } from './pages/GroupLikesPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { AboutPage } from './pages/AboutPage';
 
@@ -21,6 +22,7 @@ function App() {
                 <Route path="/about" element={<AboutPage />} />
                 <Route path="/groups" element={<GroupsPage />} />
                 <Route path="/groups/:id" element={<GroupDetailPage />} />
+                <Route path="/groups/:id/likes" element={<GroupLikesPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/" element={<Navigate to="/groups" replace />} />
               </Route>

@@ -18,23 +18,25 @@
     --warning: 245 158 11;
     --error: 239 68 68;
     --ring: 56 189 248;
+    --on-primary: 255 255 255;
   }
 
   [data-theme="summer"] {
-    --bg: 255 247 224;
-    --surface: 255 252 240;
-    --surface-2: 254 243 214;
-    --border: 243 213 153;
-    --text: 60 36 12;
-    --text-muted: 130 95 55;
-    --primary: 234 88 12;
-    --primary-hover: 194 65 12;
-    --primary-soft: 255 237 213;
-    --accent: 233 162 74;
-    --success: 22 163 74;
-    --warning: 217 119 6;
-    --error: 220 38 38;
-    --ring: 233 162 74;
+    --bg: 255 248 228;
+    --surface: 255 253 245;
+    --surface-2: 253 244 218;
+    --border: 238 210 150;
+    --text: 52 32 10;
+    --text-muted: 120 88 50;
+    --primary: 198 81 24;
+    --primary-hover: 164 60 18;
+    --primary-soft: 255 235 210;
+    --accent: 221 148 60;
+    --success: 21 128 61;
+    --warning: 204 119 6;
+    --error: 200 35 35;
+    --ring: 221 148 60;
+    --on-primary: 255 255 255;
   }
 
   [data-theme="night"] {
@@ -52,23 +54,25 @@
     --warning: 251 191 36;
     --error: 248 113 113;
     --ring: 96 165 250;
+    --on-primary: 255 255 255;
   }
 
   [data-theme="forest"] {
-    --bg: 240 249 238;
-    --surface: 255 255 255;
-    --surface-2: 232 244 228;
-    --border: 188 216 178;
-    --text: 20 45 30;
-    --text-muted: 75 105 80;
-    --primary: 22 163 74;
-    --primary-hover: 21 128 61;
-    --primary-soft: 220 240 225;
-    --accent: 132 204 22;
-    --success: 22 163 74;
-    --warning: 245 158 11;
-    --error: 239 68 68;
-    --ring: 132 204 22;
+    --bg: 237 247 233;
+    --surface: 252 253 250;
+    --surface-2: 228 243 222;
+    --border: 180 212 168;
+    --text: 18 42 28;
+    --text-muted: 70 100 76;
+    --primary: 21 148 68;
+    --primary-hover: 18 120 56;
+    --primary-soft: 215 238 210;
+    --accent: 120 180 20;
+    --success: 21 148 68;
+    --warning: 235 150 11;
+    --error: 225 65 65;
+    --ring: 120 180 20;
+    --on-primary: 255 255 255;
   }
 }
 
@@ -97,7 +101,7 @@
   .text-app { color: rgb(var(--text)); }
   .text-muted { color: rgb(var(--text-muted)); }
   .text-primary { color: rgb(var(--primary)); }
-  .text-on-primary { color: 255 255 255; }
+  .text-on-primary { color: rgb(var(--on-primary)); }
 
   .border-app { border-color: rgb(var(--border)); }
   .border-primary { border-color: rgb(var(--primary)); }

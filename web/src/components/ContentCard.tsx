@@ -1,18 +1,16 @@
 import type { ContentItem } from '../types';
-import { Star, Bookmark, Heart, Check } from 'lucide-react';
+import { Star, Heart } from 'lucide-react';
 
 interface Props {
   item: {
     content: ContentItem;
     score: number;
-    reason: string;
   };
-  savedWatchlist: boolean;
-  savedLiked: boolean;
-  onToggleSave: (content: ContentItem, list: 'watchlist' | 'liked') => void;
+  liked: boolean;
+  onToggleLike: (content: ContentItem) => void;
 }
 
-export function ContentCard({ item, savedWatchlist, savedLiked, onToggleSave }: Props) {
+export function ContentCard({ item, liked, onToggleLike }: Props) {
   return (
     <div className="group flex overflow-hidden rounded-2xl bg-surface border border-app shadow-soft transition-all duration-300 hover:shadow-card hover:-translate-y-0.5">
       <div className="relative w-32 sm:w-36 shrink-0 overflow-hidden bg-surface-2">
@@ -22,10 +20,6 @@ export function ContentCard({ item, savedWatchlist, savedLiked, onToggleSave }: 
           loading="lazy"
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
-        <div className="absolute top-2 left-2 flex items-center gap-1 rounded-lg bg-black/70 px-2 py-1 text-xs font-semibold text-white backdrop-blur-sm">
-          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-          {item.content.rating.toFixed(1)}
-        </div>
       </div>
 
       <div className="flex flex-1 flex-col p-4 min-w-0">
@@ -36,11 +30,10 @@ export function ContentCard({ item, savedWatchlist, savedLiked, onToggleSave }: 
             </h3>
             <span className="text-xs text-muted">{item.content.year}</span>
           </div>
-          {item.score > 0 && (
-            <span className="shrink-0 rounded-md bg-primary-soft text-primary text-xs font-bold px-2 py-0.5">
-              {item.score}
-            </span>
-          )}
+          <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-primary-soft text-primary text-xs font-bold px-2 py-0.5">
+            <Star className="h-3 w-3 fill-current" />
+            {item.content.rating.toFixed(1)}
+          </span>
         </div>
 
         <div className="mt-2 flex flex-wrap gap-1">
@@ -54,39 +47,22 @@ export function ContentCard({ item, savedWatchlist, savedLiked, onToggleSave }: 
           ))}
         </div>
 
-        <p className="mt-2.5 text-xs text-muted leading-relaxed line-clamp-3 flex-1">
+        <p className="mt-2.5 text-xs text-muted leading-relaxed line-clamp-5 flex-1">
           {item.content.overview}
         </p>
 
-        <div className="mt-3 flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-[11px] text-muted">
-            <Check className="h-3 w-3 text-primary" />
-            <span className="line-clamp-1">{item.reason}</span>
-          </div>
-          <div className="flex gap-1.5 shrink-0">
-            <button
-              onClick={() => onToggleSave(item.content, 'watchlist')}
-              className={`rounded-lg p-1.5 transition-all ${
-                savedWatchlist
-                  ? 'bg-primary text-white'
-                  : 'bg-surface-2 text-muted hover:text-app'
-              }`}
-              title="Смотреть позже"
-            >
-              <Bookmark className={`h-3.5 w-3.5 ${savedWatchlist ? 'fill-current' : ''}`} />
-            </button>
-            <button
-              onClick={() => onToggleSave(item.content, 'liked')}
-              className={`rounded-lg p-1.5 transition-all ${
-                savedLiked
-                  ? 'bg-red-500 text-white'
-                  : 'bg-surface-2 text-muted hover:text-app'
-              }`}
-              title="Понравившиеся"
-            >
-              <Heart className={`h-3.5 w-3.5 ${savedLiked ? 'fill-current' : ''}`} />
-            </button>
-          </div>
+        <div className="mt-3 flex justify-end">
+          <button
+            onClick={() => onToggleLike(item.content)}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+              liked
+                ? 'bg-red-500 text-white shadow-soft'
+                : 'bg-surface-2 text-muted hover:text-app'
+            }`}
+          >
+            <Heart className={`h-3.5 w-3.5 ${liked ? 'fill-current' : ''}`} />
+            {liked ? 'Понравилось' : 'Нравится'}
+          </button>
         </div>
       </div>
     </div>
