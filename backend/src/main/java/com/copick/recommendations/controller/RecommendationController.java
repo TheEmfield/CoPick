@@ -2,6 +2,7 @@ package com.copick.recommendations.controller;
 
 import com.copick.algorithm.dto.ScoredMovie;
 import com.copick.recommendations.dto.GroupStatsResponse;
+import com.copick.recommendations.dto.SnapshotMovieResponse;
 import com.copick.recommendations.service.RecommendationService;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,5 +31,10 @@ public class RecommendationController {
     @GetMapping("/{id}/recommendations/stats")
     public GroupStatsResponse getGroupStats(@PathVariable("id") int groupId) {
         return recommendationService.getGroupStats(groupId);
+    }
+
+    @GetMapping("/{id}/recommendations/last")
+    public List<SnapshotMovieResponse> getLastSnapshot(@PathVariable("id") int groupId) {
+        return recommendationService.getLastSnapshot(groupId);
     }
 }
