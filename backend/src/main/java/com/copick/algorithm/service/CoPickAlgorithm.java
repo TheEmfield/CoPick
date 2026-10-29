@@ -2,10 +2,12 @@ package com.copick.algorithm.service;
 
 import com.copick.algorithm.config.AlgorithmConfig;
 import com.copick.algorithm.dto.*;
+import org.springframework.stereotype.Component;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Component
 public class CoPickAlgorithm {
 
     private final AlgorithmConfig config;

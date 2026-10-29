@@ -15,7 +15,6 @@ public class GenreMappingService {
     private final Map<Integer, String> idToNameMap;
 
     public GenreMappingService(GenreRepository genreRepository) {
-        // Загружаем один раз при старте приложения
         Map<String, Integer> tempNameToId = loadGenres(genreRepository);
         this.nameToIdMap = Map.copyOf(tempNameToId);
 

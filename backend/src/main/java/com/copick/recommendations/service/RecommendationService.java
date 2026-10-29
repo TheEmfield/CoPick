@@ -1,15 +1,11 @@
 package com.copick.recommendations.service;
 
+import  com.copick.recommendations.dto.*;
 import com.copick.algorithm.config.AlgorithmConfig;
-import com.copick.algorithm.dto.GroupProfile;
-import com.copick.algorithm.dto.MovieCandidate;
-import com.copick.algorithm.dto.ParticipantPreference;
-import com.copick.algorithm.dto.ScoredMovie;
+import com.copick.algorithm.dto.*;
 import com.copick.algorithm.service.CoPickAlgorithm;
 import com.copick.connector.client.ConnectorClient;
-import com.copick.connector.dto.ConnectorMovie;
-import com.copick.connector.dto.DiscoverRequest;
-import com.copick.connector.dto.GenrePreference;
+import com.copick.connector.dto.*;
 import com.copick.groups.entity.GroupMember;
 import com.copick.groups.repository.GroupMemberRepository;
 import com.copick.preferences.entity.ProfilePreference;
@@ -47,9 +43,8 @@ public class RecommendationService {
     }
 
     @Transactional(readOnly = true)
-    public List<ScoredMovie> getRecommendations(int groupId, List<Integer> requestedProfileIds, int limit) {
+    public List<ScoredMovie> getRecommendations(int groupId, List<Integer> requestedProfileIds, List<Integer> contextGenreIds, int limit) {
 
-        // 1. Получаем участников группы (эффективный запрос к БД)
         List<GroupMember> members;
         if (requestedProfileIds != null && !requestedProfileIds.isEmpty()) {
             members = groupMemberRepository.findByIdGroupIdAndIdProfileIdIn(groupId, requestedProfileIds);
@@ -65,16 +60,15 @@ public class RecommendationService {
                 .map(m -> m.getId().getProfileId())
                 .toList();
 
-        // 2. Загружаем предпочтения всех участников одним запросом
+
         List<ProfilePreference> prefs = preferenceRepository.findByIdProfileIdIn(profileIds);
 
-        // 3. Группируем предпочтения по профилям: Map<profileId, Map<genreId, weight>>
         Map<Integer, Map<Integer, Double>> profileToGenres = prefs.stream()
                 .collect(Collectors.groupingBy(
                         p -> p.getId().getProfileId(),
                         Collectors.toMap(
                                 p -> p.getId().getGenreId(),
-                                p -> p.getWeight()
+                                ProfilePreference::getWeight
                         )
                 ));
 
@@ -82,11 +76,9 @@ public class RecommendationService {
                 .map(entry -> new ParticipantPreference(entry.getKey(), entry.getValue()))
                 .toList();
 
-        // 4. Считаем профиль группы (контекстные жанры пока пустые)
-        GroupProfile groupProfile = algorithm.calculateGroupProfile(participants, List.of());
+        GroupProfile groupProfile = algorithm.calculateGroupProfile(participants, contextGenreIds);
 
-        // 5. Формируем запрос к Go-коннектору
-        int targetTotal = Math.max(limit, 20); // Минимум 20 фильмов, чтобы алгоритму было из чего выбирать (M=50 по дефолту)
+        int targetTotal = Math.max(limit, 20);
 
         List<GenrePreference> preferences = groupProfile.genreInfluenceCoefficients().entrySet().stream()
                 .map(entry -> {
@@ -104,10 +96,8 @@ public class RecommendationService {
 
         DiscoverRequest request = new DiscoverRequest(preferences, excludedGenres);
 
-        // 6. Получаем фильмы от Go-коннектора
         List<ConnectorMovie> connectorMovies = connectorClient.fetchMovies(request);
 
-        // 7. Маппинг: ConnectorMovie (String genres) -> MovieCandidate (Integer genreIds)
         List<MovieCandidate> candidates = connectorMovies.stream()
                 .map(cm -> {
                     Set<Integer> internalGenreIds = cm.genres().stream()
@@ -124,7 +114,65 @@ public class RecommendationService {
                 })
                 .toList();
 
-        // 8. Запускаем чистый алгоритм и возвращаем результат
-        return algorithm.generateRecommendations(participants, List.of(), candidates, true);
+        return algorithm.generateRecommendations(participants, contextGenreIds, candidates, true);
+    }
+
+    @Transactional(readOnly = true)
+    public GroupStatsResponse getGroupStats(int groupId) {
+        List<GroupMember> members = groupMemberRepository.findByIdGroupId(groupId);
+        if (members.isEmpty()) {
+            return new GroupStatsResponse(0, List.of(), List.of());
+        }
+
+        List<Integer> profileIds = members.stream()
+                .map(m -> m.getId().getProfileId())
+                .toList();
+
+        List<ProfilePreference> prefs = preferenceRepository.findByIdProfileIdIn(profileIds);
+
+        Map<Integer, Map<Integer, Double>> profileToGenres = prefs.stream()
+                .collect(Collectors.groupingBy(
+                        p -> p.getId().getProfileId(),
+                        Collectors.toMap(
+                                p -> p.getId().getGenreId(),
+                                p -> p.getWeight()
+                        )
+                ));
+
+        List<ParticipantPreference> participants = profileToGenres.entrySet().stream()
+                .map(entry -> new ParticipantPreference(entry.getKey(), entry.getValue()))
+                .toList();
+
+        GroupProfile groupProfile = algorithm.calculateGroupProfile(participants, List.of());
+
+        Map<Integer, Double> minWeights = prefs.stream()
+                .collect(Collectors.groupingBy(
+                        p -> p.getId().getGenreId(),
+                        Collectors.collectingAndThen(
+                                Collectors.mapping(ProfilePreference::getWeight, Collectors.toList()),
+                                list -> list.stream().mapToDouble(Double::doubleValue).min().orElse(0.0)
+                        )
+                ));
+
+        List<GenreStat> topGenres = groupProfile.averageWeights().entrySet().stream()
+                .sorted(Map.Entry.<Integer, Double>comparingByValue().reversed())
+                .limit(5)
+                .map(entry -> new GenreStat(
+                        genreMappingService.getGenreNameById(entry.getKey()),
+                        entry.getValue(),
+                        minWeights.getOrDefault(entry.getKey(), 0.0)
+                ))
+                .toList();
+
+        List<String> bannedGenres = groupProfile.vetoedGenreIds().stream()
+                .map(genreMappingService::getGenreNameById)
+                .filter(Objects::nonNull)
+                .toList();
+
+        return new GroupStatsResponse(
+                members.size(),
+                topGenres,
+                bannedGenres
+        );
     }
 }

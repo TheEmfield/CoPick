@@ -1,6 +1,7 @@
 package com.copick.recommendations.controller;
 
 import com.copick.algorithm.dto.ScoredMovie;
+import com.copick.recommendations.dto.GroupStatsResponse;
 import com.copick.recommendations.service.RecommendationService;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,9 +20,15 @@ public class RecommendationController {
     @GetMapping("/{id}/recommendations")
     public List<ScoredMovie> getRecommendations(
             @PathVariable("id") int groupId,
+            @RequestParam(required = false) List<Integer> genreIds,  // ← ИЗМЕНЕНО: было mood
             @RequestParam(required = false) List<Integer> profileIds,
             @RequestParam(defaultValue = "10") int limit
     ) {
-        return recommendationService.getRecommendations(groupId, profileIds, limit);
+        return recommendationService.getRecommendations(groupId, profileIds, genreIds, limit);
+    }
+
+    @GetMapping("/{id}/recommendations/stats")
+    public GroupStatsResponse getGroupStats(@PathVariable("id") int groupId) {
+        return recommendationService.getGroupStats(groupId);
     }
 }
