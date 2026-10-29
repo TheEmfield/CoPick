@@ -24,8 +24,6 @@ public class CoPickAlgorithm {
             List<MovieCandidate> candidates,
             boolean useMmr
     ) {
-        GroupProfile groupProfile = calculateGroupProfile(participants, contextGenreIds);
-
         if (candidates.isEmpty()) {
             return List.of();
         }
@@ -155,11 +153,7 @@ public class CoPickAlgorithm {
 
             boolean hasContext = !Collections.disjoint(movie.genreIds(), contextSet);
             double ctx = hasContext ? 1.0 : 0.0;
-
-            double q = 0.0;
-            if (movie.voteCount() >= 100) {
-                q = (movie.rating() - 5.0) / 10.0;
-            }
+            double q = (movie.rating() - 5.0) / 10.0;
 
             double finalScore = g + config.beta() * ctx + config.rho() * q;
 
