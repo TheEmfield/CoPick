@@ -16,5 +16,18 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
     show-sql: true #отладка
 
+    recommendations:
+      candidate-pool-size: 150
+
+    algorithm:
+      lambda: 0.5
+      alpha: 0.6
+      beta: 0.4
+      rho: 0.15
+      mu: 0.7
+      kappa: 0.5
+      M: 50
+      K: 20
+
 server:
   port: 8080

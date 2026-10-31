@@ -14,6 +14,7 @@ import com.copick.recommendations.entity.*;
 import com.copick.recommendations.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.time.OffsetDateTime;
 import java.util.*;
@@ -21,6 +22,9 @@ import java.util.stream.Collectors;
 
 @Service
 public class RecommendationService {
+
+    @Value("${recommendations.candidate-pool-size}")
+    private int candidatePoolSize;
 
     private final CoPickAlgorithm algorithm;
     private final ConnectorClient connectorClient;
