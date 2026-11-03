@@ -1,17 +1,21 @@
 package com.copick.saved.entity;
 
 import com.copick.groups.entity.Group;
+import com.copick.preferences.entity.Genre;
 import com.copick.profiles.entity.Profile;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import java.time.OffsetDateTime;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "saved_movies")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class SavedMovie {
@@ -62,6 +66,10 @@ public class SavedMovie {
     @Column(name = "notes", columnDefinition = "text")
     private String notes;
 
-    @OneToMany(mappedBy = "savedMovie", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    private List<SavedMovieGenre> genres;
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "saved_movie_genres",
+        joinColumns = @JoinColumn(name = "saved_id"),
+        inverseJoinColumns = @JoinColumn(name = "genre_id"))
+    private Set<Genre> genres = new HashSet<>();
 }
