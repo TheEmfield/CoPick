@@ -1,5 +1,8 @@
 package com.copick.algorithm.config;
 
+import org.springframework.boot.context.properties.ConfigurationProperties;
+
+@ConfigurationProperties(prefix = "algorithm")
 public record AlgorithmConfig(
         double lambda, // Сила штрафа за нелюбимый жанр (по умолч. 0.5)
         double alpha,  // Баланс «среднее» и «наименее довольные» (по умолч. 0.6)
