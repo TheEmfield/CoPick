@@ -41,7 +41,7 @@ public class CoPickAlgorithm {
         if (useMmr) {
             return diversify(afterFinal);
         } else {
-            return afterFinal.stream().limit(config.K()).collect(Collectors.toList());
+            return afterFinal;
         }
     }
 
@@ -191,7 +191,7 @@ public class CoPickAlgorithm {
             ms.put(movie.movieId(), 0.0);
         }
 
-        while (selected.size() < config.K() && selected.size() < pool.size()) {
+        while ( selected.size() < pool.size()) {
             ScoredMovie bestMovie = null;
             double bestMmr = Double.NEGATIVE_INFINITY;
 
