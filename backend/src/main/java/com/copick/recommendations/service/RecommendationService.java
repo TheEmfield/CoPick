@@ -62,6 +62,7 @@ public class RecommendationService {
             List<Integer> contextGenreIds,
             int limit
     ) {
+        List<Integer> context = contextGenreIds == null ? List.of() : contextGenreIds;
         List<GroupMember> members;
         if (requestedProfileIds != null && !requestedProfileIds.isEmpty()) {
             members = groupMemberRepository.findByIdGroupIdAndIdProfileIdIn(groupId, requestedProfileIds);
@@ -79,25 +80,14 @@ public class RecommendationService {
 
         List<ProfilePreference> prefs = preferenceRepository.findByIdProfileIdIn(profileIds);
 
-        Map<Integer, Map<Integer, Double>> profileToGenres = new HashMap<>();
-        for (ProfilePreference p : prefs) {
-            profileToGenres
-                    .computeIfAbsent(p.getId().getProfileId(), k -> new HashMap<>())
-                    .put(p.getId().getGenreId(), p.getWeight());
-        }
+        List<ParticipantPreference> participants = buildParticipants(prefs, profileIds);
 
-        List<ParticipantPreference> participants = profileToGenres.entrySet().stream()
-                .map(entry -> new ParticipantPreference(entry.getKey(), entry.getValue()))
-                .toList();
-
-        GroupProfile groupProfile = algorithm.calculateGroupProfile(participants, contextGenreIds);
-
-        int targetTotal = Math.max(limit, 20);
+        GroupProfile groupProfile = algorithm.calculateGroupProfile(participants, context);
 
         List<GenrePreference> preferences = groupProfile.genreInfluenceCoefficients().entrySet().stream()
                 .map(entry -> {
                     String genreName = genreMappingService.getGenreNameById(entry.getKey());
-                    int count = (int) Math.round(entry.getValue() * targetTotal);
+                    int count = (int) Math.round(entry.getValue() * candidatePoolSize);
                     return new GenrePreference(genreName, count);
                 })
                 .filter(p -> p.genre() != null && p.count() > 0)
@@ -109,7 +99,6 @@ public class RecommendationService {
                 .toList();
 
         DiscoverRequest request = new DiscoverRequest(preferences, excludedGenres);
-
         List<ConnectorMovie> connectorMovies = connectorClient.fetchMovies(request);
 
         List<MovieCandidate> candidates = connectorMovies.stream()
@@ -128,17 +117,26 @@ public class RecommendationService {
                 })
                 .toList();
 
-        List<ScoredMovie> result = algorithm.generateRecommendations(participants, contextGenreIds, candidates, true);
+        List<ScoredMovie> result = algorithm.generateRecommendations(participants, context, candidates, true);
 
-        Set<Integer> scoredMovieIds = result.stream()
-                .map(ScoredMovie::movieId)
-                .collect(Collectors.toSet());
+        if (result.size() > limit) {
+            result = new ArrayList<>(result.subList(0, limit));
+        }
 
-        List<ConnectorMovie> moviesToSave = connectorMovies.stream()
-                .filter(cm -> scoredMovieIds.contains(cm.id()))
-                .toList();
+        Map<Integer, ConnectorMovie> byId = new HashMap<>();
+        for (ConnectorMovie cm : connectorMovies) {
+            byId.putIfAbsent(cm.id(), cm);
+        }
 
-        saveSnapshot(groupId, moviesToSave, profileIds);
+        List<ConnectorMovie> moviesToSave = new ArrayList<>();
+        for (ScoredMovie sm : result) {
+            ConnectorMovie cm = byId.get(sm.movieId());
+            if (cm != null) {
+                moviesToSave.add(cm);
+            }
+        }
+
+        saveSnapshot(groupId, moviesToSave);
 
         return result;
     }
@@ -156,16 +154,7 @@ public class RecommendationService {
 
         List<ProfilePreference> prefs = preferenceRepository.findByIdProfileIdIn(profileIds);
 
-        Map<Integer, Map<Integer, Double>> profileToGenres = new HashMap<>();
-        for (ProfilePreference p : prefs) {
-            profileToGenres
-                    .computeIfAbsent(p.getId().getProfileId(), k -> new HashMap<>())
-                    .put(p.getId().getGenreId(), p.getWeight());
-        }
-
-        List<ParticipantPreference> participants = profileToGenres.entrySet().stream()
-                .map(entry -> new ParticipantPreference(entry.getKey(), entry.getValue()))
-                .toList();
+        List<ParticipantPreference> participants = buildParticipants(prefs, profileIds);
 
         GroupProfile groupProfile = algorithm.calculateGroupProfile(participants, List.of());
 
@@ -192,9 +181,9 @@ public class RecommendationService {
         return new GroupStatsResponse(members.size(), topGenres, bannedGenres);
     }
 
-    @Transactional
-    public void saveSnapshot(int groupId, List<ConnectorMovie> movies, List<Integer> profileIds) {
+    private void saveSnapshot(int groupId, List<ConnectorMovie> movies) {
         snapshotRepository.deleteByGroupGroupId(groupId);
+        snapshotRepository.flush();
 
         RecommendationSnapshot snapshot = RecommendationSnapshot.builder()
                 .group(createGroupReference(groupId))
@@ -281,5 +270,20 @@ public class RecommendationService {
         Group group = new Group();
         group.setGroupId(groupId);
         return group;
+    }
+
+    private List<ParticipantPreference> buildParticipants(List<ProfilePreference> prefs, List<Integer> profileIds) {
+        Map<Integer, Map<Integer, Double>> profileToGenres = new HashMap<>();
+        for (Integer profileId : profileIds) {
+            profileToGenres.put(profileId, new HashMap<>());
+        }
+        for (ProfilePreference p : prefs) {
+            profileToGenres
+                    .computeIfAbsent(p.getId().getProfileId(), k -> new HashMap<>())
+                    .put(p.getId().getGenreId(), p.getWeight());
+        }
+        return profileToGenres.entrySet().stream()
+                .map(entry -> new ParticipantPreference(entry.getKey(), entry.getValue()))
+                .toList();
     }
 }

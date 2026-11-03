@@ -21,7 +21,7 @@ public class RecommendationController {
     @GetMapping("/{id}/recommendations")
     public List<ScoredMovie> getRecommendations(
             @PathVariable("id") int groupId,
-            @RequestParam(required = false) List<Integer> genreIds,  // ← ИЗМЕНЕНО: было mood
+            @RequestParam(required = false) List<Integer> genreIds,
             @RequestParam(required = false) List<Integer> profileIds,
             @RequestParam(defaultValue = "10") int limit
     ) {
