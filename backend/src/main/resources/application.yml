@@ -15,7 +15,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
     show-sql: true #отладка
-
+    
     recommendations:
       candidate-pool-size: 150
 
@@ -28,6 +28,10 @@ spring:
       kappa: 0.5
       M: 50
       K: 20
+
+jwt:
+  secret: ${JWT_SECRET}
+  duration: ${JWT_DURATION}
 
 server:
   port: 8080
