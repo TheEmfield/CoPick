@@ -84,14 +84,12 @@ public class GroupController {
     }
 
     /**
-     * 4. Вся инфа по группе (участники, код и т.д.)
+     * 4. Вся инфа по группе
      */
     @GetMapping("/{id}")
     public ResponseEntity<GroupDetailsDto> getGroupDetails(
             @PathVariable Integer id,
             @AuthenticationPrincipal Integer currentProfileId) {
-
-        // Проверяем, что пользователь вообще состоит в группе (опционально, но безопасно)
         groupService.getMemberRole(id, currentProfileId);
 
         Group group = groupService.getGroupById(id);
@@ -155,18 +153,14 @@ public class GroupController {
     }
 
     /**
-     * 8. Покинуть группу (Важно: этого метода не было в твоем snippet'е сервиса,
-     * но он критически нужен. См. примечание ниже)
+     * 8. Покинуть группу
      */
     @PostMapping("/{id}/leave")
     public ResponseEntity<Void> leaveGroup(
             @PathVariable Integer id,
             @AuthenticationPrincipal Integer currentProfileId) {
 
-        // Если этот метод есть в сервисе:
-        // groupService.leaveGroup(id, currentProfileId);
-
-        // Пока закомментируем, чтобы код компилировался, или добавь его в сервис (см. ниже)
+        groupService.leaveGroup(id, currentProfileId);
         throw new UnsupportedOperationException("Метод leaveGroup нужно добавить в GroupService");
     }
 }
