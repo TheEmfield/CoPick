@@ -228,6 +228,42 @@ public class GroupService {
     }
 
     /**
+     * Пользователь покидает группу.
+     * Если это был владелец, владение передается старейшему участнику.
+     * Если в группе никого не осталось, группа удаляется.
+     */
+    @Transactional
+    public void leaveGroup(Integer groupId, Integer profileId) {
+        GroupMember member = findMember(groupId, profileId);
+
+        boolean wasOwner = (member.getRole() == GroupRole.OWNER);
+        groupMemberRepository.delete(member);
+
+        if (wasOwner) {
+            // Ищем старейшего участника (sort по joinedAt)
+            List<GroupMember> remainingMembers = groupMemberRepository.findByIdGroupId(groupId);
+
+            if (remainingMembers.isEmpty()) {
+                groupRepository.deleteById(groupId);
+                log.info("Группа {} удалена, т.к. последний участник покинул её", groupId);
+            } else {
+                // Передаем владение первому в списке (он старейший, если сортировать при запросе,
+                // но findByIdGroupId не сортирует. Давай добавим сортировку в репозиторий или сделаем тут)
+                GroupMember newOwner = remainingMembers.stream()
+                        .min((m1, m2) -> m1.getJoinedAt().compareTo(m2.getJoinedAt()))
+                        .orElseThrow();
+
+                newOwner.setRole(GroupRole.OWNER);
+                groupMemberRepository.save(newOwner);
+
+                log.info("Владение группой {} передано профилю {}", groupId, newOwner.getProfile().getProfileId());
+            }
+        } else {
+            log.info("Профиль {} покинул группу {}", profileId, groupId);
+        }
+    }
+
+    /**
     * Проверяет, что profileId — владелец группы.
     *
     * @throws NotGroupOwnerException если профиль не состоит в группе или не владелец
