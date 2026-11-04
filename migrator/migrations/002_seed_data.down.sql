@@ -1,10 +1,2 @@
-DELETE FROM genres
-WHERE genre_name IN (
-    'Боевик', 'Приключения', 'Мультфильм', 'Комедия', 'Криминал',
-    'Документальный', 'Драма', 'Семейный', 'Фэнтези', 'История',
-    'Ужасы', 'Музыка', 'Детектив', 'Мелодрама', 'Фантастика',
-    'Телевизионный фильм', 'Триллер', 'Военный', 'Вестерн'
-);
-
-DELETE FROM content_types
-WHERE content_name = 'movie';
+DELETE FROM genres;
+DELETE FROM content_types;

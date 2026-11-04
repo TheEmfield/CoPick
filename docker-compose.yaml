@@ -5,17 +5,19 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_ROOT_PASSWORD:-postgres}
-      POSTGRES_DB: testdb
+      POSTGRES_DB: copick_db
     volumes:
       - postgres_data:/var/lib/postgresql
       - ./postgres_init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d testdb"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d copick_db"]
       interval: 5s
       timeout: 5s
       retries: 5
     ports:
       - "5433:5432"
+    networks:
+      - app_network
 
   postgres_migrate:
     container_name: postgres_migrate
@@ -24,12 +26,14 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_ROOT_PASSWORD:-postgres}
-      POSTGRES_DB: testdb
+      POSTGRES_DB: copick_db
     entrypoint: ["./migrator"]
     command: ["up", "-c", "config.yaml"]
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - app_network
 
   connector:
       container_name: connector
@@ -42,5 +46,25 @@ services:
       depends_on:
         postgres_migrate:
           condition: service_completed_successfully
+      networks:
+      - app_network
+
+  web:
+    container_name: copick_web
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    ports:
+      - "4200:80"
+    #depends_on:
+      #- backend
+    networks:
+      - app_network
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+
+networks:
+  app_network:
+    driver: bridge

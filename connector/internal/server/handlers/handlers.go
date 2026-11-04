@@ -13,6 +13,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+//go:generate mockery --name=fetcher --output=mocks --outpkg=mocks --exported
 type fetcher interface {
 	FetchMovies(ctx context.Context, req dto.DiscoverRequest) (*dto.DiscoverResponse, error)
 }

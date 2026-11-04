@@ -48,7 +48,7 @@ func main() {
 }
 
 func run(cfg *config.Config, logger *slog.Logger) error {
-	fetcher := service.New(cfg.TMDB, logger)
+	fetcher := service.New(cfg, logger)
 	api := handlers.NewServiceAPI(logger, cfg, fetcher)
 	router := setupServer(api)
 

@@ -28,47 +28,47 @@ type tmdbMovie struct {
 }
 
 var genreToId = map[string]string{
-	"action":      "28",
-	"adventure":   "12",
-	"animation":   "16",
-	"comedy":      "35",
-	"crime":       "80",
-	"documentary": "99",
-	"drama":       "18",
-	"family":      "10751",
-	"fantasy":     "14",
-	"history":     "36",
-	"horror":      "27",
-	"music":       "10402",
-	"mystery":     "9648",
-	"romance":     "10749",
-	"scifi":       "878",
-	"tv_movie":    "10770",
-	"thriller":    "53",
-	"war":         "10752",
-	"western":     "37",
+	"Боевик":              "28",
+	"Приключения":         "12",
+	"Мультфильм":          "16",
+	"Комедия":             "35",
+	"Криминал":            "80",
+	"Документальный":      "99",
+	"Драма":               "18",
+	"Семейный":            "10751",
+	"Фэнтези":             "14",
+	"Исторический":        "36",
+	"Ужасы":               "27",
+	"Мьюзикл":             "10402",
+	"Детектив":            "9648",
+	"Мелодрама":           "10749",
+	"Фантастика":          "878",
+	"Телевизионный фильм": "10770",
+	"Триллер":             "53",
+	"Военный":             "10752",
+	"Вестерн":             "37",
 }
 
 var idToGenre = map[string]string{
-	"28":    "action",
-	"12":    "adventure",
-	"16":    "animation",
-	"35":    "comedy",
-	"80":    "crime",
-	"99":    "documentary",
-	"18":    "drama",
-	"10751": "family",
-	"14":    "fantasy",
-	"36":    "history",
-	"27":    "horror",
-	"10402": "music",
-	"9648":  "mystery",
-	"10749": "romance",
-	"878":   "scifi",
-	"10770": "tv_movie",
-	"53":    "thriller",
-	"10752": "war",
-	"37":    "western",
+	"28":    "Боевик",
+	"12":    "Приключения",
+	"16":    "Мультфильм",
+	"35":    "Комедия",
+	"80":    "Криминал",
+	"99":    "Документальный",
+	"18":    "Драма",
+	"10751": "Семейный",
+	"14":    "Фэнтези",
+	"36":    "Исторический",
+	"27":    "Ужасы",
+	"10402": "Мьюзикл",
+	"9648":  "Детектив",
+	"10749": "Мелодрама",
+	"878":   "Фантастика",
+	"10770": "Телевизионный фильм",
+	"53":    "Триллер",
+	"10752": "Военный",
+	"37":    "Вестерн",
 }
 
 var apiKey = os.Getenv("TMDB_API_KEY")
@@ -80,21 +80,21 @@ const (
 	TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p"
 )
 
-type Client struct {
+type MovieClient struct {
 	client *http.Client
 	cfg    config.TMDB
 	logger *slog.Logger
 }
 
-func New(cfg config.TMDB, logger *slog.Logger) *Client {
-	return &Client{
+func NewMovieClient(cfg config.TMDB, logger *slog.Logger) *MovieClient {
+	return &MovieClient{
 		client: &http.Client{Timeout: cfg.TMDBTimeout},
 		cfg:    cfg,
 		logger: logger,
 	}
 }
 
-func (c *Client) fetchMovie(ctx context.Context, genre string, excludedGenres []string, amount int) ([]dto.Movie, error) {
+func (mc *MovieClient) fetchMovie(ctx context.Context, genre string, excludedGenres []string, amount int) ([]dto.Movie, error) {
 	exGenres := genresToIDString(excludedGenres, genreToId)
 
 	genreID, ok := genreToId[genre]
@@ -108,7 +108,7 @@ func (c *Client) fetchMovie(ctx context.Context, genre string, excludedGenres []
 
 	for len(allMovies) < amount {
 		url := fmt.Sprintf("%s/discover/movie?api_key=%s&language=ru-RU&with_genres=%s&without_genres=%s&sort_by=%s&vote_average.gte=%.1f&vote_count.gte=%d&page=%d",
-			c.cfg.URL, apiKey, genreID, exGenres, sort_by, vote_average, vote_count, page,
+			mc.cfg.URL, apiKey, genreID, exGenres, sort_by, vote_average, vote_count, page,
 		)
 
 		var tmdbResp struct {
@@ -120,7 +120,7 @@ func (c *Client) fetchMovie(ctx context.Context, genre string, excludedGenres []
 			return nil, fmt.Errorf("create request: %w", err)
 		}
 
-		resp, err := c.client.Do(req)
+		resp, err := mc.client.Do(req)
 		if err != nil {
 			return nil, fmt.Errorf("do request: %w", err)
 		}
@@ -183,11 +183,11 @@ func (c *Client) fetchMovie(ctx context.Context, genre string, excludedGenres []
 	return allMovies, nil
 }
 
-func (c *Client) FetchMovies(ctx context.Context, req dto.DiscoverRequest) (*dto.DiscoverResponse, error) {
+func (mc *MovieClient) FetchMovies(ctx context.Context, req dto.DiscoverRequest) (*dto.DiscoverResponse, error) {
 	var allMovies []dto.Movie
 
 	for _, pref := range req.Preferences {
-		movies, err := c.fetchMovie(ctx, pref.Genre, req.ExcludedGenres, pref.Count)
+		movies, err := mc.fetchMovie(ctx, pref.Genre, req.ExcludedGenres, pref.Count)
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch genre '%s': %w", pref.Genre, err)
 		}

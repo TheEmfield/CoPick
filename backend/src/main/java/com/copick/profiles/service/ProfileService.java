@@ -72,7 +72,6 @@ public class ProfileService {
             throw new InvalidCredentialsException();
         }
 
-        setAuthentication(profile);
         log.info("Успешный вход: profileId={}, nickname={}", profile.getProfileId(), nickname);
         return profile;
     }
@@ -140,11 +139,42 @@ public class ProfileService {
         log.info("Пароль изменён: profileId={}", profileId);
     }
 
-    private void setAuthentication(Profile profile) {
-        Authentication auth =
-            new UsernamePasswordAuthenticationToken(
-                profile.getProfileId(), null, List.of(new SimpleGrantedAuthority(ROLE_USER)));
-        SecurityContextHolder.getContext().setAuthentication(auth);
+    @Transactional
+    public Profile updateProfile(Integer profileId, String newNickname, String oldPassword, String newPassword) {
+        Profile profile = getProfile(profileId);
+
+        if (newNickname != null && !newNickname.isBlank() && !newNickname.equals(profile.getNickname())) {
+            validateNickname(newNickname);
+
+            if (profileRepository.existsByNickname(newNickname)) {
+                throw new NicknameAlreadyExistsException(newNickname);
+            }
+
+            String oldNickname = profile.getNickname();
+            profile.setNickname(newNickname);
+            log.info("Никнейм изменён: profileId={}, old='{}', new='{}'", profileId, oldNickname, newNickname);
+        }
+
+        if (newPassword != null && !newPassword.isBlank()) {
+            if (oldPassword == null || !passwordEncoder.matches(oldPassword, profile.getPasswordHash())) {
+                throw new InvalidCredentialsException();
+            }
+
+            validatePassword(newPassword);
+
+            profile.setPasswordHash(passwordEncoder.encode(newPassword));
+            log.info("Пароль изменен: profileId={}", profileId);
+        }
+
+        return profileRepository.save(profile);
+    }
+
+    @Transactional
+    public void deleteProfile(Integer profileId) {
+        Profile profile = getProfile(profileId);
+
+        profileRepository.delete(profile);
+        log.info("Профиль удалён: profileId={}, nickname={}", profileId, profile.getNickname());
     }
 
     private void validateNickname(String nickname) {
@@ -177,13 +207,5 @@ public class ProfileService {
             throw new InvalidPasswordException(
                 "Пароль не может быть длиннее " + PASSWORD_MAX_LENGTH + " символов (ограничение BCrypt)");
         }
-    }
-
-    @Transactional
-    public void deleteProfile(Integer profileId) {
-        Profile profile = getProfile(profileId);
-
-        profileRepository.delete(profile);
-        log.info("Профиль удалён: profileId={}, nickname={}", profileId, profile.getNickname());
     }
 }

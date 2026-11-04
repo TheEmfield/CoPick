@@ -16,5 +16,9 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
     show-sql: true #отладка
 
+jwt:
+  secret: ${JWT_SECRET}
+  duration: ${JWT_DURATION}
+
 server:
   port: 8080
