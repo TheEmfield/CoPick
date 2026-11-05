@@ -49,6 +49,29 @@ services:
       networks:
       - app_network
 
+  backend:
+    container_name: copick_backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/copick_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_ROOT_PASSWORD:-postgres}
+      
+      JWT_SECRET: ${JWT_SECRET:-my-super-secret-local-key-for-development-1234567890}
+      JWT_DURATION: ${JWT_DURATION:-86400000}
+      
+      CONNECTOR_URL: http://connector:8080 
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres_migrate:
+        condition: service_completed_successfully
+    networks:
+      - app_network
+    restart: unless-stopped
+
   web:
     container_name: copick_web
     build:
@@ -56,8 +79,8 @@ services:
       dockerfile: Dockerfile
     ports:
       - "4200:80"
-    #depends_on:
-      #- backend
+    depends_on:
+      - backend
     networks:
       - app_network
     restart: unless-stopped
