@@ -26,14 +26,14 @@ public class GenreMappingService {
     private Map<String, Integer> loadGenres(GenreRepository genreRepository) {
         return genreRepository.findAll().stream()
                 .collect(Collectors.toMap(
-                        g -> g.getGenreName().toLowerCase().trim(),
+                        g -> g.getGenreName().trim(),
                         Genre::getGenreId
                 ));
     }
 
     public Integer getGenreIdByName(String genreName) {
         if (genreName == null) return null;
-        return nameToIdMap.get(genreName.toLowerCase().trim());
+        return nameToIdMap.get(genreName.trim());
     }
 
     public String getGenreNameById(Integer genreId) {
