@@ -40,7 +40,7 @@ public class SecurityConfig {
                     ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
             .authorizeHttpRequests(
                 auth ->
-                    auth.requestMatchers("/api/v1/auth/register", "/api/v1/auth/login")
+                    auth.requestMatchers("/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/genres")
                         .permitAll()
                         .requestMatchers("/api/v1/**")
                         .authenticated()
