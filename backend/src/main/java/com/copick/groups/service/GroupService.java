@@ -56,6 +56,7 @@ public class GroupService {
         Profile creatorRef = profileRepository.getReferenceById(creatorProfileId);
 
         GroupMember member = new GroupMember();
+        member.setId(new GroupMemberId(group.getGroupId(), creatorProfileId)); 
         member.setGroup(group);
         member.setProfile(creatorRef);
         member.setRole(GroupRole.OWNER);
@@ -81,6 +82,7 @@ public class GroupService {
         Profile profileRef = profileRepository.getReferenceById(profileId);
 
         GroupMember member = new GroupMember();
+        member.setId(new GroupMemberId(group.getGroupId(), profileId));
         member.setGroup(group);
         member.setProfile(profileRef);
         member.setRole(GroupRole.MEMBER);
