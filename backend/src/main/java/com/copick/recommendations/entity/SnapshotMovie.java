@@ -26,7 +26,7 @@ public class SnapshotMovie {
     @Column(name = "backdrop_url", length = 512)
     private String backdropUrl;
 
-    @Column(name = "rating", precision = 3, scale = 1)
+    @Column(name = "rating", columnDefinition = "NUMERIC")
     private Double rating;
 
     @Column(name = "release_year")

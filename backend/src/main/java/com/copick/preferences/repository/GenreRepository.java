@@ -11,6 +11,6 @@ import org.springframework.stereotype.Repository;
 public interface GenreRepository extends JpaRepository<Genre, Integer> {
     Optional<Genre> findByGenreName(String genreName);
 
-    @Query("SELECT g FROM Genre g JOIN FETCH g.ContentType ORDER BY g.genreId ASC")
+    @Query("SELECT g FROM Genre g JOIN FETCH g.contentType ORDER BY g.genreId ASC")
     List<Genre> findAllWithContentType();
 }
