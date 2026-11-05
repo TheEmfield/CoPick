@@ -27,6 +27,7 @@ public interface SavedMovieRepository extends JpaRepository<SavedMovie, Integer>
     /**
      * Проверяет, не сохранён ли уже этот контент в данной группе (защита от дубликатов).
      */
+    @Query("SELECT sm FROM SavedMovie sm WHERE sm.group.groupId = :groupId AND sm.externalId = :externalId AND sm.contentType = :contentType")
     Optional<SavedMovie> findByGroupIdAndExternalIdAndContentType(
             @Param("groupId") Integer groupId,
             @Param("externalId") String externalId,

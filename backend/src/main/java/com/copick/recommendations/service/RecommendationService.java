@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 @Service
 public class RecommendationService {
 
-    @Value("${recommendations.candidate-pool-size}")
+    @Value("${recommendations.candidate-pool-size:150}")
     private int candidatePoolSize;
 
     private final CoPickAlgorithm algorithm;
@@ -231,7 +231,7 @@ public class RecommendationService {
         Integer snapshotId = snapshot.getSnapshotId();
 
         List<SnapshotMovie> movies = snapshotMovieRepository
-                .findByIdSnapshotIdOrderByMoviePositionAsc(snapshotId);
+                .findBySnapshotIdOrderByPosition(snapshotId);
 
         Map<Integer, List<SnapshotMovieGenre>> genresByPosition = snapshotMovieGenreRepository
                 .findByIdSnapshotId(snapshotId)

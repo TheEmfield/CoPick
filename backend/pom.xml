@@ -89,6 +89,8 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+    <!-- JJWT API -->
+
 
     <build>
         <plugins>

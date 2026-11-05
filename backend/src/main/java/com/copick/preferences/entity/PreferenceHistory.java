@@ -29,10 +29,10 @@ public class PreferenceHistory {
     @JoinColumn(name = "genre_id", nullable = false)
     private Genre genre;
 
-    @Column(name = "old_weight", precision = 3, scale = 2)
+    @Column(name = "old_weight", columnDefinition = "NUMERIC")
     private Double oldWeight;
 
-    @Column(name = "new_weight", precision = 3, scale = 2)
+    @Column(name = "new_weight", columnDefinition = "NUMERIC")
     private Double newWeight;
 
     @CreationTimestamp
