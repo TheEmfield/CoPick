@@ -1,6 +1,7 @@
 package com.copick.groups.service;
 
 import com.copick.groups.entity.Group;
+import com.copick.groups.exception.CannotKickOwnerException;
 import com.copick.groups.entity.GroupMember;
 import com.copick.groups.entity.GroupMemberId;
 import com.copick.groups.entity.GroupRole;
@@ -16,6 +17,7 @@ import com.copick.groups.repository.GroupRepository;
 import com.copick.profiles.entity.Profile;
 import com.copick.profiles.repository.ProfileRepository;
 import java.util.List;
+import java.util.Comparator;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -158,25 +160,6 @@ public class GroupService {
         log.info("Передано владение группой {}: {} → {}", groupId, currentOwnerId, newOwnerId);
     }
 
-    /**
-    * Удаляет участника из группы
-    *
-    * @param memberProfileId удаляемый участник — не может быть самим владельцем
-    */
-    @Transactional
-    public void kickMember(Integer groupId, Integer ownerId, Integer memberProfileId) {
-        requireOwner(groupId, ownerId);
-
-        if (ownerId.equals(memberProfileId)) {
-            throw new NotGroupOwnerException(groupId, memberProfileId);
-        }
-
-        GroupMember member = findMember(groupId, memberProfileId);
-        groupMemberRepository.delete(member);
-
-        log.info("Участник {} удалён из группы {} владельцем {}", memberProfileId, groupId, ownerId);
-    }
-
     /** Генерирует новый invite-код для группы (старый становится недействительным). */
     @Transactional
     public Group regenerateInviteCode(Integer groupId, Integer ownerId) {
@@ -226,6 +209,72 @@ public class GroupService {
 
         return group;
     }
+
+    /** Проверяет, что профиль состоит в группе. */
+    @Transactional(readOnly = true)
+    public void requireMember(Integer groupId, Integer profileId) {
+        findMember(groupId, profileId);
+    }
+
+    /** Количество участников группы. */
+    @Transactional(readOnly = true)
+    public int countMembers(Integer groupId) {
+        return groupMemberRepository.countByIdGroupId(groupId);
+    }
+
+    /**
+     * Удаляет участника из группы
+     *
+     * @param memberProfileId удаляемый участник — не может быть самим владельцем
+     */
+    @Transactional
+    public void kickMember(Integer groupId, Integer ownerId, Integer memberProfileId) {
+        requireOwner(groupId, ownerId);
+
+        if (ownerId.equals(memberProfileId)) {
+            throw new CannotKickOwnerException(groupId, memberProfileId);
+        }
+
+        GroupMember member = findMember(groupId, memberProfileId);
+        groupMemberRepository.delete(member);
+
+        log.info("Участник {} удалён из группы {} владельцем {}", memberProfileId, groupId, ownerId);
+    }
+
+    @Transactional
+    public void leaveGroup(Integer groupId, Integer profileId) {
+        GroupMember member = findMember(groupId, profileId);
+
+        boolean wasOwner = member.getRole() == GroupRole.OWNER;
+        groupMemberRepository.delete(member);
+        groupMemberRepository.flush(); // чтобы запрос ниже точно не увидел удалённого
+
+        if (!wasOwner) {
+            log.info("Профиль {} покинул группу {}", profileId, groupId);
+            return;
+        }
+
+        List<GroupMember> remaining = groupMemberRepository.findByIdGroupId(groupId);
+
+        if (remaining.isEmpty()) {
+            groupRepository.deleteById(groupId);
+            log.info("Группа {} удалена, т.к. последний участник покинул её", groupId);
+            return;
+        }
+
+        // Владение переходит к старейшему участнику
+        GroupMember newOwner = remaining.stream()
+                .min(Comparator.comparing(GroupMember::getJoinedAt))
+                .orElseThrow();
+
+        newOwner.setRole(GroupRole.OWNER);
+        groupMemberRepository.save(newOwner);
+
+        log.info("Владение группой {} передано профилю {}",
+                groupId, newOwner.getProfile().getProfileId());
+    }
+
+
 
     /**
     * Проверяет, что profileId — владелец группы.
