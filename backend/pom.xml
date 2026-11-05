@@ -42,6 +42,11 @@
             <scope>runtime</scope>
         </dependency>
 
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
         <!-- Уменьшает количество шаблонного кода (геттеры, сеттеры) -->
         <dependency>
             <groupId>org.projectlombok</groupId>

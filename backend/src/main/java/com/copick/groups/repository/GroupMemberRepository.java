@@ -31,4 +31,6 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, GroupM
 
     // Точечный поиск конкретного членства — для проверки роли, kick, transferOwnership.
     Optional<GroupMember> findByIdGroupIdAndIdProfileId(Integer groupId, Integer profileId);
+
+    int countByIdGroupId(Integer groupId);
 }
