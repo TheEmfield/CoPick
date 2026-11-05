@@ -1,7 +1,15 @@
 package com.copick.groups.exception;
 
-public class CannotKickOwnerException extends RuntimeException {
+import com.copick.exception.DomainException;
+import org.springframework.http.HttpStatus;
+
+public class CannotKickOwnerException extends DomainException {
+
     public CannotKickOwnerException(Integer groupId, Integer profileId) {
-        super("Нельзя кикнуть владельца группы (groupId=" + groupId + ", profileId=" + profileId + ")");
+        super(
+                "Нельзя исключить владельца группы через этот эндпоинт. Для выхода используйте 'Покинуть группу'.",
+                HttpStatus.BAD_REQUEST,
+                "CANNOT_KICK_OWNER"
+        );
     }
 }
