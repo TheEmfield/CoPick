@@ -14,10 +14,4 @@ public record SaveMovieRequest(
     String overview,
     String notes,
     List<String> genres
-) {
-    public SaveMovieRequest {
-        if (contentType == null || contentType.isBlank()) {
-            contentType = "movie";
-        }
-    }
-}
+) {}
