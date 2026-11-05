@@ -6,6 +6,5 @@ public record MovieCandidate(
         int movieId,
         String title,
         Set<Integer> genreIds,
-        double rating,
-        int voteCount
+        double rating
 ) {}

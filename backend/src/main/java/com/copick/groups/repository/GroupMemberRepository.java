@@ -33,4 +33,6 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, GroupM
     Optional<GroupMember> findByIdGroupIdAndIdProfileId(Integer groupId, Integer profileId);
 
     int countByIdGroupId(Integer groupId);
+
+    List<GroupMember> findByIdGroupIdAndIdProfileIdIn(Integer groupId, List<Integer> profileIds);
 }
