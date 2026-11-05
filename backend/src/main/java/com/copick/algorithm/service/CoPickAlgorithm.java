@@ -2,10 +2,11 @@ package com.copick.algorithm.service;
 
 import com.copick.algorithm.config.AlgorithmConfig;
 import com.copick.algorithm.dto.*;
+import org.springframework.stereotype.Component;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
+@Component
 public class CoPickAlgorithm {
 
     private final AlgorithmConfig config;
@@ -14,18 +15,12 @@ public class CoPickAlgorithm {
         this.config = config;
     }
 
-    public CoPickAlgorithm() {
-        this(new AlgorithmConfig());
-    }
-
     public List<ScoredMovie> generateRecommendations(
             List<ParticipantPreference> participants,
             List<Integer> contextGenreIds,
             List<MovieCandidate> candidates,
             boolean useMmr
     ) {
-        GroupProfile groupProfile = calculateGroupProfile(participants, contextGenreIds);
-
         if (candidates.isEmpty()) {
             return List.of();
         }
@@ -46,7 +41,7 @@ public class CoPickAlgorithm {
         if (useMmr) {
             return diversify(afterFinal);
         } else {
-            return afterFinal.stream().limit(config.K()).collect(Collectors.toList());
+            return afterFinal;
         }
     }
 
@@ -155,11 +150,7 @@ public class CoPickAlgorithm {
 
             boolean hasContext = !Collections.disjoint(movie.genreIds(), contextSet);
             double ctx = hasContext ? 1.0 : 0.0;
-
-            double q = 0.0;
-            if (movie.voteCount() >= 100) {
-                q = (movie.rating() - 5.0) / 10.0;
-            }
+            double q = (movie.rating() - 5.0) / 10.0;
 
             double finalScore = g + config.beta() * ctx + config.rho() * q;
 
@@ -200,7 +191,7 @@ public class CoPickAlgorithm {
             ms.put(movie.movieId(), 0.0);
         }
 
-        while (selected.size() < config.K() && selected.size() < pool.size()) {
+        while ( selected.size() < pool.size()) {
             ScoredMovie bestMovie = null;
             double bestMmr = Double.NEGATIVE_INFINITY;
 
