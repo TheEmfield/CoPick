@@ -41,8 +41,17 @@ export function GroupLikesPage() {
 
   const toggleLike = async (content: ContentItem) => {
     try {
-      const updated = await api.toggleGroupLike(groupId, content);
-      setLikes(updated);
+      const existingLike = likes.find((l) => l.content.externalId === content.externalId);
+
+      if (existingLike) {
+        await api.removeGroupLike(groupId, existingLike.id);
+        setLikes((prev) => prev.filter((l) => l.id !== existingLike.id));
+        toast('Удалено из понравившихся', 'info');
+      } else {
+        const newLike = await api.addGroupLike(groupId, content);
+        setLikes((prev) => [...prev, newLike]);
+        toast('Добавлено в понравившиеся', 'success');
+      }
     } catch {
       toast('Не удалось обновить', 'error');
     }

@@ -4,8 +4,8 @@ spring:
 
   datasource:
     url: jdbc:postgresql://localhost:5433/copick_db
-    username: postgres
-    password: postgres
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -15,7 +15,6 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
     show-sql: true # отладка
-
 
 algorithm:
   lambda: 0.5
@@ -33,6 +32,9 @@ recommendations:
 jwt:
   secret: ${JWT_SECRET}
   duration: ${JWT_DURATION}
+
+connector:
+  url: ${CONNECTOR_URL:http://connector:8080}
 
 server:
   port: 8080

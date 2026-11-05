@@ -1,4 +1,3 @@
-// === Аутентификация ===
 export interface Profile {
   profileId: number;
   nickname: string;
@@ -10,7 +9,6 @@ export interface AuthResponse {
   profile: Profile;
 }
 
-// === Группы ===
 export interface Group {
   groupId: number;
   name: string;
@@ -32,11 +30,10 @@ export interface GroupDetail extends Group {
   members: GroupMember[];
 }
 
-// === Жанры и предпочтения ===
 export interface Genre {
   genreId: number;
   genreName: string;
-  contentType?: number; // опционально, пока работаем только с фильмами
+  contentType?: number;
 }
 
 export interface Preference {
@@ -46,10 +43,9 @@ export interface Preference {
   updatedAt: string;
 }
 
-// === Контент (пока только фильмы) ===
 export interface ContentItem {
   externalId: string;
-  type: 'movie'; // жёстко фиксируем, что пока только фильмы
+  type: 'movie';
   title: string;
   genres: string[];
   year: number;
@@ -69,7 +65,6 @@ export interface RecommendationResponse {
   total: number;
 }
 
-// === Статистика группы ===
 export interface GroupStats {
   memberCount: number;
   topGenres: { genreName: string; avgWeight: number; minWeight: number }[];
@@ -77,10 +72,9 @@ export interface GroupStats {
   suggestedMood: string;
 }
 
-// === Сохранённое ===
 export interface SavedItem {
   id: number;
   content: ContentItem;
-  list: 'watchlist' | 'liked';
+  list: 'liked';
   addedAt: string;
 }
