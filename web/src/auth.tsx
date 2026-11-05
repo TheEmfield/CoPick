@@ -5,7 +5,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { api } from './api';
+import { api, getToken } from './api';
 import type { Profile } from './types';
 
 interface AuthContextValue {
@@ -26,7 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = api.getToken();
+    const token = getToken();
     const stored = localStorage.getItem(PROFILE_KEY);
     if (token && stored) {
       try {
@@ -39,18 +39,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (nickname: string, password: string) => {
-    const res = await api.login(nickname, password);
-    setProfile(res.profile);
+    await api.login(nickname, password);
+    const updatedProfile = await api.updateMe({});
+    const storedProfile = localStorage.getItem(PROFILE_KEY);
+    if (storedProfile) {
+      setProfile(JSON.parse(storedProfile));
+    }
   };
 
   const register = async (nickname: string, password: string) => {
-    const res = await api.register(nickname, password);
-    setProfile(res.profile);
+    await api.register(nickname, password);  // ✅ ТОКЕН СОХРАНЯЕТСЯ ВНУТРИ api.register
+    const storedProfile = localStorage.getItem(PROFILE_KEY);
+    if (storedProfile) {
+      setProfile(JSON.parse(storedProfile));
+    }
   };
 
   const updateMe = async (updates: { nickname?: string; password?: string }) => {
     const updated = await api.updateMe(updates);
     setProfile(updated);
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(updated));
   };
 
   const logout = () => {
