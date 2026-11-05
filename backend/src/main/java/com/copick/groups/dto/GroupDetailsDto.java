@@ -8,6 +8,7 @@ public record GroupDetailsDto(
         String name,
         String inviteCode,
         Short ageRestriction,
+        Integer ownerId,
         OffsetDateTime createdAt,
         List<MemberDto> members
 ) {

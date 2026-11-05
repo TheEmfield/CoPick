@@ -227,41 +227,66 @@ public class GroupService {
         return group;
     }
 
-    /**
-     * Пользователь покидает группу.
-     * Если это был владелец, владение передается старейшему участнику.
-     * Если в группе никого не осталось, группа удаляется.
-     */
+    /** Проверяет, что профиль состоит в группе. */
+    @Transactional(readOnly = true)
+    public void requireMember(Integer groupId, Integer profileId) {
+        findMember(groupId, profileId);
+    }
+
+    /** Количество участников группы. */
+    @Transactional(readOnly = true)
+    public int countMembers(Integer groupId) {
+        return groupMemberRepository.countByIdGroupId(groupId);
+    }
+
+    @Transactional
+    public void kickMember(Integer groupId, Integer ownerId, Integer memberProfileId) {
+        requireOwner(groupId, ownerId);
+
+        if (ownerId.equals(memberProfileId)) {
+            throw new CannotKickOwnerException(groupId, memberProfileId);
+        }
+
+        GroupMember member = findMember(groupId, memberProfileId);
+        groupMemberRepository.delete(member);
+
+        log.info("Участник {} удалён из группы {} владельцем {}", memberProfileId, groupId, ownerId);
+    }
+
     @Transactional
     public void leaveGroup(Integer groupId, Integer profileId) {
         GroupMember member = findMember(groupId, profileId);
 
-        boolean wasOwner = (member.getRole() == GroupRole.OWNER);
+        boolean wasOwner = member.getRole() == GroupRole.OWNER;
         groupMemberRepository.delete(member);
+        groupMemberRepository.flush(); // чтобы запрос ниже точно не увидел удалённого
 
-        if (wasOwner) {
-            // Ищем старейшего участника (sort по joinedAt)
-            List<GroupMember> remainingMembers = groupMemberRepository.findByIdGroupId(groupId);
-
-            if (remainingMembers.isEmpty()) {
-                groupRepository.deleteById(groupId);
-                log.info("Группа {} удалена, т.к. последний участник покинул её", groupId);
-            } else {
-                // Передаем владение первому в списке (он старейший, если сортировать при запросе,
-                // но findByIdGroupId не сортирует. Давай добавим сортировку в репозиторий или сделаем тут)
-                GroupMember newOwner = remainingMembers.stream()
-                        .min((m1, m2) -> m1.getJoinedAt().compareTo(m2.getJoinedAt()))
-                        .orElseThrow();
-
-                newOwner.setRole(GroupRole.OWNER);
-                groupMemberRepository.save(newOwner);
-
-                log.info("Владение группой {} передано профилю {}", groupId, newOwner.getProfile().getProfileId());
-            }
-        } else {
+        if (!wasOwner) {
             log.info("Профиль {} покинул группу {}", profileId, groupId);
+            return;
         }
+
+        List<GroupMember> remaining = groupMemberRepository.findByIdGroupId(groupId);
+
+        if (remaining.isEmpty()) {
+            groupRepository.deleteById(groupId);
+            log.info("Группа {} удалена, т.к. последний участник покинул её", groupId);
+            return;
+        }
+
+        // Владение переходит к старейшему участнику
+        GroupMember newOwner = remaining.stream()
+                .min(Comparator.comparing(GroupMember::getJoinedAt))
+                .orElseThrow();
+
+        newOwner.setRole(GroupRole.OWNER);
+        groupMemberRepository.save(newOwner);
+
+        log.info("Владение группой {} передано профилю {}",
+                groupId, newOwner.getProfile().getProfileId());
     }
+
+
 
     /**
     * Проверяет, что profileId — владелец группы.

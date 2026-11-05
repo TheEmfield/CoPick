@@ -1,6 +1,5 @@
 package com.copick.groups.dto;
 
-public record GroupCreateRequest(
-        String name,
-        Short ageRestriction
+public record GroupJoinRequest(
+        String inviteCode
 ) {}
