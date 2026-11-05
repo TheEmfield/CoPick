@@ -1,11 +1,5 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from 'react';
-import { api } from './api';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { api, getToken } from './api';
 import type { Profile } from './types';
 
 interface AuthContextValue {
@@ -19,15 +13,13 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const PROFILE_KEY = 'copick_profile';
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = api.getToken();
-    const stored = localStorage.getItem(PROFILE_KEY);
+    const token = getToken();
+    const stored = localStorage.getItem('copick_profile');
     if (token && stored) {
       try {
         setProfile(JSON.parse(stored));
@@ -39,13 +31,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (nickname: string, password: string) => {
-    const res = await api.login(nickname, password);
-    setProfile(res.profile);
+    await api.login(nickname, password);
+    const stored = localStorage.getItem('copick_profile');
+    if (stored) setProfile(JSON.parse(stored));
   };
 
   const register = async (nickname: string, password: string) => {
-    const res = await api.register(nickname, password);
-    setProfile(res.profile);
+    await api.register(nickname, password);
+    const stored = localStorage.getItem('copick_profile');
+    if (stored) setProfile(JSON.parse(stored));
   };
 
   const updateMe = async (updates: { nickname?: string; password?: string }) => {

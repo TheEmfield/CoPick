@@ -36,17 +36,17 @@ services:
       - app_network
 
   connector:
-      container_name: connector
-      build:
-        context: connector
-      environment:
-        TMDB_API_KEY: ${TMDB_API_KEY}
-      entrypoint: ["./connector"]
-      command: ["up", "-c", "config.yaml"]
-      depends_on:
-        postgres_migrate:
-          condition: service_completed_successfully
-      networks:
+    container_name: connector
+    build:
+      context: connector
+    environment:
+      TMDB_API_KEY: ${TMDB_API_KEY}
+    entrypoint: ["./connector"]
+    command: ["up", "-c", "config.yaml"]
+    depends_on:
+      postgres_migrate:
+        condition: service_completed_successfully
+    networks:
       - app_network
 
   backend:
