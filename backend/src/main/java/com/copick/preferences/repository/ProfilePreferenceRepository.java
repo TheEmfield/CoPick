@@ -25,4 +25,6 @@ public interface ProfilePreferenceRepository
     @Modifying
     @Query("DELETE FROM ProfilePreference p WHERE p.id.profileId = :profileId AND p.id.genreId = :genreId")
     int deleteByProfileIdAndGenreId(@Param("profileId") Integer profileId, @Param("genreId") Integer genreId);
+
+    List<ProfilePreference> findByIdProfileIdIn(List<Integer> profileIds);
 }
