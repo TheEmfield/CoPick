@@ -38,3 +38,20 @@ connector:
 
 server:
   port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,metrics,info
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: copick-backend
+
+telegram:
+  bot:
+    token: ${TELEGRAM_BOT_TOKEN}
+    chat-id: ${TELEGRAM_CHAT_ID}
