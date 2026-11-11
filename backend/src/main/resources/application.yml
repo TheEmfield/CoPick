@@ -34,7 +34,7 @@ jwt:
   duration: ${JWT_DURATION}
 
 connector:
-  url: ${CONNECTOR_URL:http://connector:8080}
+  url: "http://connector:8080"
 
 server:
   port: 8080

@@ -15,7 +15,7 @@ public class ConnectorClient {
 
     private final RestClient restClient;
 
-    public ConnectorClient(@Value("${connector.url:http://connector:8080}") String connectorUrl) {
+    public ConnectorClient(@Value("${connector.url}") String connectorUrl) {
         this.restClient = RestClient.builder()
                 .baseUrl(connectorUrl)
                 .defaultHeader("Content-Type", "application/json")
