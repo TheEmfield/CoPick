@@ -75,7 +75,7 @@ public class CoPickAlgorithm {
             averageWeights.put(entry.getKey(), entry.getValue() / n);
         }
 
-        Map<Integer, Double> influenceCoefficients = getIntegerDoubleMap(averageWeights, vetoedGenres);
+        Map<Integer, Double> influenceCoefficients = getIntegerDoubleMap(averageWeights, vetoedGenres, contextGenreIds);
 
         return new GroupProfile(averageWeights, vetoedGenres, n, influenceCoefficients);
     }
@@ -226,7 +226,11 @@ public class CoPickAlgorithm {
         return selected;
     }
 
-    private static Map<Integer, Double> getIntegerDoubleMap(Map<Integer, Double> averageWeights, Set<Integer> vetoedGenres) {
+    private static Map<Integer, Double> getIntegerDoubleMap(
+            Map<Integer, Double> averageWeights,
+            Set<Integer> vetoedGenres,
+            List<Integer> contextGenreIds
+    ) {
         Map<Integer, Double> influenceCoefficients = new HashMap<>();
         double positiveSum = 0.0;
 
@@ -245,7 +249,13 @@ public class CoPickAlgorithm {
                     influenceCoefficients.put(genreId, weight / positiveSum);
                 }
             }
+        } else if (contextGenreIds != null && !contextGenreIds.isEmpty()) {
+            double equalWeight = 1.0 / contextGenreIds.size();
+            for (Integer genreId : contextGenreIds) {
+                influenceCoefficients.put(genreId, equalWeight);
+            }
         }
+
         return influenceCoefficients;
     }
 

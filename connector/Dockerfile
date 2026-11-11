@@ -16,8 +16,5 @@ COPY --from=builder /app/config.yaml ./
 
 EXPOSE 8080
 
-HEALTHCHECK --interval=10s --timeout=3s --retries=3 \
-  CMD wget -q --spider http://localhost:8080/discover || exit 1
-
 ENTRYPOINT ["./connector"]
 CMD ["-c", "config.yaml"]

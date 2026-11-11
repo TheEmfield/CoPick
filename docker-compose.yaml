@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_ROOT_PASSWORD:-postgres}
       POSTGRES_DB: copick_db
     volumes:
-      - postgres_data:/var/lib/postgresql
+      - postgres_data:/var/lib/postgresql/data
       - ./postgres_init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d copick_db"]
@@ -58,11 +58,12 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/copick_db
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_ROOT_PASSWORD:-postgres}
-      
       JWT_SECRET: ${JWT_SECRET:-my-super-secret-local-key-for-development-1234567890}
       JWT_DURATION: ${JWT_DURATION:-86400000}
-      
-      CONNECTOR_URL: http://connector:8080 
+      CONNECTOR_URL: http://connector:8080
+      # Переменные для Telegram-бота
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
     ports:
       - "8080:8080"
     depends_on:
@@ -85,8 +86,47 @@ services:
       - app_network
     restart: unless-stopped
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: copick_prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/rules.yml:/etc/prometheus/rules.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    networks:
+      - app_network
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: copick_alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+    networks:
+      - app_network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: copick_grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - app_network
+
 volumes:
   postgres_data:
+  grafana_data:
 
 networks:
   app_network:

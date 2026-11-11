@@ -75,7 +75,7 @@ func (api *ServiceAPI) GetMovies(ctx echo.Context) error {
 	for _, pref := range req.Preferences {
 		if pref.Count <= 0 {
 			api.Logger.Warn("invalid count in preferences", "genre", pref.Genre, "count", pref.Count)
-			return echo.NewHTTPError(http.StatusBadRequest, "Количество фильмов (count) должно быть больше 0")
+			return echo.NewHTTPError(http.StatusBadRequest, "Количество фильмов должно быть больше 0")
 		}
 	}
 
