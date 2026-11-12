@@ -53,7 +53,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.22'
-          
+
       - name: Start services
         run: docker compose up -d --build
       
@@ -69,7 +69,7 @@ jobs:
           exit 1
 
       - name: Run tests
-        working-directory: ./tests
+        working-directory: ./tests/integration_tests
         env:
           DB_HOST: localhost
           DB_PORT: 5433
