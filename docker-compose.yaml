@@ -50,7 +50,7 @@ services:
       - app_network
 
   backend:
-    container_name: copick_backend
+    container_name: backend
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -74,7 +74,7 @@ services:
     restart: unless-stopped
 
   web:
-    container_name: copick_web
+    container_name: web
     build:
       context: ./web
       dockerfile: Dockerfile
@@ -88,7 +88,7 @@ services:
 
   prometheus:
     image: prom/prometheus:latest
-    container_name: copick_prometheus
+    container_name: prometheus
     ports:
       - "9090:9090"
     volumes:
@@ -101,7 +101,7 @@ services:
 
   alertmanager:
     image: prom/alertmanager:latest
-    container_name: copick_alertmanager
+    container_name: alertmanager
     ports:
       - "9093:9093"
     volumes:
@@ -113,7 +113,7 @@ services:
 
   grafana:
     image: grafana/grafana:latest
-    container_name: copick_grafana
+    container_name: grafana
     ports:
       - "3000:3000"
     environment:
@@ -123,6 +123,24 @@ services:
       - grafana_data:/var/lib/grafana
     networks:
       - app_network
+  
+  tests:
+    build:
+      context: ./tests
+    container_name: tests
+    restart: "no"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - API_HOST=backend
+      - API_PORT=8080
+    networks:
+      - app_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - test
 
 volumes:
   postgres_data:
