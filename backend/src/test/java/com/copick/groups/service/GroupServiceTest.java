@@ -294,7 +294,7 @@ class GroupServiceTest {
 
             groupService.deleteGroup(GROUP_ID, OWNER_ID);
 
-            verify(groupRepository).delete(group);
+            verify(groupRepository).deleteGroupById(GROUP_ID);
         }
 
         @Test
@@ -308,7 +308,7 @@ class GroupServiceTest {
             assertThatThrownBy(() -> groupService.deleteGroup(GROUP_ID, 5))
                     .isInstanceOf(NotGroupOwnerException.class);
 
-            verify(groupRepository, never()).delete(any(Group.class));
+            verify(groupRepository, never()).deleteGroupById(GROUP_ID);
         }
 
         @Test

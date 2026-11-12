@@ -48,6 +48,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("RecommendationService: оркестрация рекомендаций и снимков")
@@ -80,12 +82,15 @@ class RecommendationServiceTest {
     private SnapshotMovieGenreRepository snapshotMovieGenreRepository;
 
     private RecommendationService recommendationService;
+    
+    private MeterRegistry meterRegistry;
 
     @BeforeEach
     void setUp() {
+	meterRegistry = new SimpleMeterRegistry();
         recommendationService = new RecommendationService(
                 algorithm, connectorClient, genreMappingService, groupMemberRepository,
-                preferenceRepository, snapshotRepository, snapshotMovieRepository, snapshotMovieGenreRepository);
+                preferenceRepository, snapshotRepository, snapshotMovieRepository, snapshotMovieGenreRepository, meterRegistry);
         ReflectionTestUtils.setField(recommendationService, "candidatePoolSize", 100);
     }
 
