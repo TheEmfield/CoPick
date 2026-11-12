@@ -126,7 +126,7 @@ services:
   
   tests:
     build:
-      context: ./tests
+      context: ./tests/integration_tests
     container_name: tests
     restart: "no"
     environment:
@@ -141,6 +141,19 @@ services:
         condition: service_healthy
     profiles:
       - test
+      
+  loadtest:
+    image: grafana/k6:latest
+    container_name: loadtest
+    networks:
+      - app_network
+    environment:
+      - API_URL=http://backend:8080/api/v1
+    volumes:
+      - ./tests/load_test.js:/scripts/load_test.js:ro
+    command: run /scripts/load_test.js
+    profiles:
+      - loadtest
 
 volumes:
   postgres_data:

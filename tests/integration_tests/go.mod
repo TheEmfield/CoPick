@@ -1,4 +1,4 @@
-module github.com/TheEmfield/tests
+module github.com/TheEmfield/tests/integration_tests
 
 go 1.22.7
 
