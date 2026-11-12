@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -60,8 +61,7 @@ func TestUserJourney_CreateGroupAndVerifyInDB(t *testing.T) {
 	baseURL := fmt.Sprintf("http://%s:%s/api/v1", apiHost, apiPort)
 
 	db, err := sqlx.Connect("postgres", dbURL)
-	require.NoError(t, err, "Не удалось подключиться к базе данных")
-	defer db.Close()
+	require.NoError(t, err)
 
 	nickname := fmt.Sprintf("testuser_%d", time.Now().Unix())
 	password := "StrongPass123!"
@@ -85,11 +85,11 @@ func TestUserJourney_CreateGroupAndVerifyInDB(t *testing.T) {
 	resp.Body.Close()
 
 	require.Contains(t, []int{http.StatusOK, http.StatusCreated}, resp.StatusCode,
-		"Unexpected status code during registration. Real response body: %s", string(respBody))
+		"Unexpected status code during registration. Response: %s", string(respBody))
 
 	var authResp AuthResponse
-	require.NoError(t, json.Unmarshal(respBody, &authResp), "Failed to decode registration response")
-	require.NotEmpty(t, authResp.Token, "Токен не должен быть пустым после регистрации")
+	require.NoError(t, json.Unmarshal(respBody, &authResp))
+	require.NotEmpty(t, authResp.Token)
 
 	groupBody := map[string]any{
 		"name":           "Тестовая группа sqlx",
@@ -108,25 +108,49 @@ func TestUserJourney_CreateGroupAndVerifyInDB(t *testing.T) {
 	respBody, _ = io.ReadAll(resp.Body)
 	resp.Body.Close()
 
-	require.Equal(t, http.StatusOK, resp.StatusCode, "Failed to create group. Real response body: %s", string(respBody))
+	require.Equal(t, http.StatusOK, resp.StatusCode, "Failed to create group. Response: %s", string(respBody))
 
 	var createdGroup GroupDetail
 	require.NoError(t, json.Unmarshal(respBody, &createdGroup))
 	require.NotZero(t, createdGroup.GroupID)
 
+	t.Cleanup(func() {
+		ctx := context.Background()
+		tx, err := db.BeginTx(ctx, nil)
+		if err != nil {
+			t.Logf("Failed to begin cleanup transaction: %v", err)
+			return
+		}
+
+		_, err = tx.ExecContext(ctx, "DELETE FROM groups WHERE group_id = $1", createdGroup.GroupID)
+		if err != nil {
+			t.Logf("Failed to delete group: %v", err)
+			tx.Rollback()
+			return
+		}
+
+		_, err = tx.ExecContext(ctx, "DELETE FROM profiles WHERE nickname = $1", nickname)
+		if err != nil {
+			t.Logf("Failed to delete profile: %v", err)
+			tx.Rollback()
+			return
+		}
+
+		err = tx.Commit()
+		if err != nil {
+			t.Logf("Failed to commit cleanup: %v", err)
+		}
+
+		db.Close()
+	})
+
 	var dbGroup DBGroup
 	err = db.Get(&dbGroup, `SELECT group_id, name, invite_code, age_restriction FROM groups WHERE group_id = $1`, createdGroup.GroupID)
-	require.NoError(t, err, "Группа должна быть найдена в базе данных")
+	require.NoError(t, err)
 
 	require.Equal(t, createdGroup.GroupID, dbGroup.GroupID)
 	require.Equal(t, "Тестовая группа sqlx", dbGroup.Name)
 	require.NotEmpty(t, dbGroup.InviteCode)
 	require.NotNil(t, dbGroup.AgeRestriction)
 	require.Equal(t, int16(18), *dbGroup.AgeRestriction)
-
-	_, err = db.Exec("DELETE FROM groups WHERE group_id = $1", createdGroup.GroupID)
-	require.NoError(t, err, "Очистка тестовых данных должна пройти успешно")
-
-	_, err = db.Exec("DELETE FROM profiles WHERE nickname = $1", nickname)
-	require.NoError(t, err, "Очистка тестового профиля должна пройти успешно")
 }
