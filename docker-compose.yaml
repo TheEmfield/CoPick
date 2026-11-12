@@ -124,10 +124,10 @@ services:
     networks:
       - app_network
   
-  tests:
+  integration_tests:
     build:
       context: ./tests/integration_tests
-    container_name: tests
+    container_name: integration_tests
     restart: "no"
     environment:
       - DB_HOST=postgres
