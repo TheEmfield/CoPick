@@ -2,7 +2,7 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Rate } from 'k6/metrics';
 
-const BASE_URL = __ENV.API_URL || 'http://localhost:8080/api/v1';
+const BASE_URL = __ENV.API_URL;
 
 const errorsRate = new Rate('errors');
 
