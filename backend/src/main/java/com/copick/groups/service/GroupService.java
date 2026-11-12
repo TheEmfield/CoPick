@@ -136,9 +136,8 @@ public class GroupService {
         Group group = getGroupById(groupId);
         requireOwner(groupId, ownerId);
 
-        groupRepository.delete(group);
-
-        log.info("Удалена группа: groupId={}, by profile={}", groupId, ownerId);
+        int deleted = groupRepository.deleteGroupById(groupId);
+        log.info("Удалена группа: groupId={}, by profile={}, rows={}", groupId, ownerId, deleted);
     }
 
     /** Передаёт владение группой другому участнику. */
