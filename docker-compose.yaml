@@ -140,7 +140,7 @@ services:
       postgres:
         condition: service_healthy
     profiles:
-      - test
+      - integration_tests
       
   loadtest:
     image: grafana/k6:latest
