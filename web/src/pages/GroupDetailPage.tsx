@@ -10,14 +10,8 @@ import { useToast } from '../components/Toast';
 import { useAuth } from '../auth';
 import {
   ArrowLeft, Copy, RefreshCw, Crown, UserMinus, LogOut, Trash2,
-  Sparkles, Users, Film, Tv, Gamepad2, ChevronDown, Layers, Heart,
+  Sparkles, Users, ChevronDown, Layers, Heart,
 } from 'lucide-react';
-
-const TYPE_ICONS: Record<string, typeof Film> = {
-  movie: Film,
-  series: Tv,
-  game: Gamepad2,
-};
 
 export function GroupDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -35,7 +29,10 @@ export function GroupDetailPage() {
   const isOwner = profile?.profileId === detail?.ownerId;
 
   const loadLikes = useCallback(async () => {
-    try { setLikes(await api.getGroupLikes(groupId)); } catch { /* noop */ }
+    try { 
+      const data = await api.getGroupLikes(groupId); 
+      setLikes(data);
+    } catch { /* noop */ }
   }, [groupId]);
 
   const loadAll = useCallback(async () => {
@@ -43,13 +40,14 @@ export function GroupDetailPage() {
     try {
       const [d, r] = await Promise.all([
         api.getGroupDetail(groupId),
-        api.getRecommendations(groupId, { limit: 20 }),
+        api.getLastRecommendations(groupId),
       ]);
       setDetail(d);
-      setRecs(r.items);
+      setRecs(r);
       await loadLikes();
-    } catch {
-      toast('Группа не найдена', 'error');
+    } catch (err) {
+      console.error('Ошибка загрузки группы:', err);
+      toast('Группа не найдена или нет доступа', 'error');
       navigate('/groups');
     } finally {
       setLoading(false);
@@ -58,12 +56,21 @@ export function GroupDetailPage() {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  const likedIds = new Set(likes.map((s) => s.content.externalId));
+  const likedIds = new Set(likes.map((s) => s.content.externalId || s.content.title));
 
   const toggleLike = async (content: ContentItem) => {
     try {
-      const updated = await api.toggleGroupLike(groupId, content);
-      setLikes(updated);
+      const existingLike = likes.find((l) => l.content.externalId === content.externalId);
+
+      if (existingLike) {
+        await api.removeGroupLike(groupId, existingLike.id);
+        setLikes((prev) => prev.filter((l) => l.id !== existingLike.id));
+        toast('Удалено из понравившихся', 'info');
+      } else {
+        const newLike = await api.addGroupLike(groupId, content);
+        setLikes((prev) => [...prev, newLike]);
+        toast('Добавлено в понравившиеся', 'success');
+      }
     } catch {
       toast('Не удалось обновить', 'error');
     }
@@ -116,17 +123,12 @@ export function GroupDetailPage() {
   };
 
   if (loading || !detail) {
-    return (
-      <div className="flex justify-center py-20"><Spinner className="text-primary" /></div>
-    );
+    return <div className="flex justify-center py-20"><Spinner className="text-primary" /></div>;
   }
 
   return (
     <div className="animate-fade-in">
-      <button
-        onClick={() => navigate('/groups')}
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-app transition-colors"
-      >
+      <button onClick={() => navigate('/groups')} className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-app transition-colors">
         <ArrowLeft className="h-4 w-4" /> Все группы
       </button>
 
@@ -141,13 +143,9 @@ export function GroupDetailPage() {
         </div>
         <div className="flex gap-2">
           {isOwner ? (
-            <Button variant="danger" icon={<Trash2 className="h-4 w-4" />} onClick={deleteGroup}>
-              Удалить группу
-            </Button>
+            <Button variant="danger" icon={<Trash2 className="h-4 w-4" />} onClick={deleteGroup}>Удалить группу</Button>
           ) : (
-            <Button variant="secondary" icon={<LogOut className="h-4 w-4" />} onClick={leaveGroup}>
-              Покинуть
-            </Button>
+            <Button variant="secondary" icon={<LogOut className="h-4 w-4" />} onClick={leaveGroup}>Покинуть</Button>
           )}
         </div>
       </div>
@@ -158,23 +156,19 @@ export function GroupDetailPage() {
             <div>
               <h2 className="text-xl font-bold text-app">Доска подборок</h2>
               <p className="mt-0.5 text-sm text-muted">
-                {recs.length > 0
-                  ? 'Текущая подборка для вашей группы'
-                  : 'Закажите подборку, чтобы наполнить доску'}
+                {recs.length > 0 ? 'Текущая подборка для вашей группы' : 'Закажите подборку, чтобы наполнить доску'}
               </p>
             </div>
-            <Button icon={<Sparkles className="h-4 w-4" />} onClick={() => setOrderOpen(true)}>
-              Собрать подборку
-            </Button>
+            <Button icon={<Sparkles className="h-4 w-4" />} onClick={() => setOrderOpen(true)}>Собрать подборку</Button>
           </div>
 
           {recs.length > 0 ? (
             <div className="space-y-3">
-              {recs.map((item) => (
+              {recs.map((item, idx) => (
                 <ContentCard
-                  key={item.content.externalId}
+                  key={idx}
                   item={item}
-                  liked={likedIds.has(item.content.externalId)}
+                  liked={likedIds.has(item.content.title)}
                   onToggleLike={toggleLike}
                 />
               ))}
@@ -189,19 +183,10 @@ export function GroupDetailPage() {
 
         <div className="space-y-6">
           <InviteCard detail={detail} isOwner={isOwner} onCopy={copyCode} onRefresh={refreshCode} />
-          <MembersCard
-            detail={detail}
-            currentProfileId={profile?.profileId}
-            isOwner={isOwner}
-            onKick={kickMember}
-          />
+          <MembersCard detail={detail} currentProfileId={profile?.profileId} isOwner={isOwner} onKick={kickMember} />
           <Button variant="secondary" className="w-full" icon={<Heart className="h-4 w-4" />} onClick={() => navigate(`/groups/${groupId}/likes`)}>
             Понравившиеся
-            {likes.length > 0 && (
-              <span className="ml-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5">
-                {likes.length}
-              </span>
-            )}
+            {likes.length > 0 && <span className="ml-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5">{likes.length}</span>}
           </Button>
         </div>
       </div>
@@ -217,50 +202,22 @@ export function GroupDetailPage() {
   );
 }
 
-function InviteCard({
-  detail,
-  isOwner,
-  onCopy,
-  onRefresh,
-}: {
-  detail: GroupDetail;
-  isOwner: boolean;
-  onCopy: () => void;
-  onRefresh: () => void;
-}) {
+function InviteCard({ detail, isOwner, onCopy, onRefresh }: { detail: GroupDetail; isOwner: boolean; onCopy: () => void; onRefresh: () => void }) {
   return (
     <div className="rounded-2xl bg-surface border border-app p-5 shadow-soft">
       <h3 className="mb-3 text-sm font-semibold text-app">Код приглашения</h3>
       <div className="rounded-xl bg-primary-soft px-4 py-3 text-center">
-        <span className="text-xl font-mono font-bold tracking-[0.3em] text-primary">
-          {detail.inviteCode}
-        </span>
+        <span className="text-xl font-mono font-bold tracking-[0.3em] text-primary">{detail.inviteCode}</span>
       </div>
       <div className="mt-3 flex gap-2">
-        <Button variant="secondary" className="flex-1" icon={<Copy className="h-4 w-4" />} onClick={onCopy}>
-          Копировать
-        </Button>
-        {isOwner && (
-          <Button variant="secondary" icon={<RefreshCw className="h-4 w-4" />} onClick={onRefresh}>
-            <span className="sr-only">Обновить</span>
-          </Button>
-        )}
+        <Button variant="secondary" className="flex-1" icon={<Copy className="h-4 w-4" />} onClick={onCopy}>Копировать</Button>
+        {isOwner && <Button variant="secondary" icon={<RefreshCw className="h-4 w-4" />} onClick={onRefresh}><span className="sr-only">Обновить</span></Button>}
       </div>
     </div>
   );
 }
 
-function MembersCard({
-  detail,
-  currentProfileId,
-  isOwner,
-  onKick,
-}: {
-  detail: GroupDetail;
-  currentProfileId?: number;
-  isOwner: boolean;
-  onKick: (profileId: number) => void;
-}) {
+function MembersCard({ detail, currentProfileId, isOwner, onKick }: { detail: GroupDetail; currentProfileId?: number; isOwner: boolean; onKick: (profileId: number) => void }) {
   return (
     <div className="rounded-2xl bg-surface border border-app p-5 shadow-soft">
       <div className="mb-3 flex items-center gap-2">
@@ -270,27 +227,16 @@ function MembersCard({
       </div>
       <div className="space-y-1">
         {detail.members.map((m) => (
-          <div
-            key={m.profileId}
-            className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 hover:bg-surface-2 transition-colors"
-          >
+          <div key={m.profileId} className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 hover:bg-surface-2 transition-colors">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-soft text-primary text-xs font-semibold">
               {m.nickname.slice(0, 2).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-app truncate">{m.nickname}</p>
-              {m.role === 'owner' && (
-                <span className="inline-flex items-center gap-1 text-[10px] text-primary">
-                  <Crown className="h-2.5 w-2.5" /> Владелец
-                </span>
-              )}
+              {m.role === 'owner' && <span className="inline-flex items-center gap-1 text-[10px] text-primary"><Crown className="h-2.5 w-2.5" /> Владелец</span>}
             </div>
             {isOwner && m.profileId !== currentProfileId && (
-              <button
-                onClick={() => onKick(m.profileId)}
-                className="rounded-lg p-1.5 text-muted hover:bg-red-50 hover:text-red-600 transition-colors"
-                title="Исключить"
-              >
+              <button onClick={() => onKick(m.profileId)} className="rounded-lg p-1.5 text-muted hover:bg-red-50 hover:text-red-600 transition-colors" title="Исключить">
                 <UserMinus className="h-3.5 w-3.5" />
               </button>
             )}
@@ -301,20 +247,12 @@ function MembersCard({
   );
 }
 
-function OrderModal({
-  open,
-  onClose,
-  groupId,
-  members,
-  onResults,
-}: {
-  open: boolean;
-  onClose: () => void;
-  groupId: number;
-  members: GroupDetail['members'];
-  onResults: (items: RecommendationItem[]) => void;
-}) {
-  const [types, setTypes] = useState<Set<string>>(new Set(['movie', 'series', 'game']));
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return <div><label className="mb-2 block text-sm font-semibold text-app">{title}</label>{children}</div>;
+}
+
+function OrderModal({ open, onClose, groupId, members, onResults }: { open: boolean; onClose: () => void; groupId: number; members: GroupDetail['members']; onResults: (items: RecommendationItem[]) => void }) {
+  const toast = useToast();
   const [genres, setGenres] = useState<Genre[]>([]);
   const [selectedGenres, setSelectedGenres] = useState<Set<string>>(new Set());
   const [selectedMembers, setSelectedMembers] = useState<Set<number>>(new Set());
@@ -326,14 +264,6 @@ function OrderModal({
       api.getGenres().then(setGenres).catch(() => {});
     }
   }, [open, genres.length]);
-
-  const toggleType = (t: string) => {
-    setTypes((prev) => {
-      const next = new Set(prev);
-      next.has(t) ? next.delete(t) : next.add(t);
-      return next;
-    });
-  };
 
   const toggleGenre = (name: string) => {
     setSelectedGenres((prev) => {
@@ -354,68 +284,40 @@ function OrderModal({
   const submit = async () => {
     setLoading(true);
     try {
-      const res = await api.getRecommendations(groupId, {
-        types: Array.from(types),
-        limit: 20,
-        genreFilter: Array.from(selectedGenres),
+      const selectedGenreIds = genres
+        .filter((g) => selectedGenres.has(g.genreName))
+        .map((g) => g.genreId);
+
+      const res = await api.generateRecommendations(groupId, {
+        genreIds: selectedGenreIds.length > 0 ? selectedGenreIds : undefined,
         profileIds: selectedMembers.size > 0 ? Array.from(selectedMembers) : undefined,
+        limit: 20,
       });
-      onResults(res.items);
-    } catch {
-      /* noop */
+      
+      onResults(res);
+      toast('Подборка готова', 'success');
+    } catch (err) {
+      console.error('Ошибка при заказе подборки:', err);
+      toast('Не удалось получить подборку', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const availableGenres = genres.filter((g) => {
-    if (types.size === 3 || types.size === 0) return true;
-    if (types.has('movie') && g.contentType === 1) return true;
-    if (types.has('series') && g.contentType === 2) return true;
-    if (types.has('game') && g.contentType === 3) return true;
-    return false;
-  });
-  const genreNames = Array.from(new Set(availableGenres.map((g) => g.genreName))).sort();
+  const genreNames = Array.from(new Set(genres.map((g) => g.genreName))).sort();
 
   return (
     <Modal open={open} onClose={onClose} title="Собрать подборку" size="lg">
       <div className="space-y-5">
-        <Section title="Тип контента">
-          <div className="grid grid-cols-3 gap-2">
-            {(['movie', 'series', 'game'] as const).map((t) => {
-              const Icon = TYPE_ICONS[t];
-              const labels = { movie: 'Фильмы', series: 'Сериалы', game: 'Игры' };
-              return (
-                <button
-                  key={t}
-                  onClick={() => toggleType(t)}
-                  className={`flex flex-col items-center gap-2 rounded-xl border-2 px-3 py-3 transition-all ${
-                    types.has(t)
-                      ? 'border-primary bg-primary-soft text-primary'
-                      : 'border-app bg-surface text-muted hover:border-primary/50'
-                  }`}
-                >
-                  <Icon className="h-5 w-5" />
-                  <span className="text-xs font-medium">{labels[t]}</span>
-                </button>
-              );
-            })}
-          </div>
-        </Section>
-
         <Section title="Жанры для акцента">
-          <p className="mb-2.5 text-xs text-muted">
-            Выберите жанры, на которые люди сейчас настроены. Можно несколько или ни одного.
-          </p>
+          <p className="mb-2.5 text-xs text-muted">Выберите жанры, на которые люди сейчас настроены.</p>
           <div className="flex flex-wrap gap-2">
             {genreNames.map((name) => (
               <button
                 key={name}
                 onClick={() => toggleGenre(name)}
                 className={`rounded-lg px-3 py-1.5 text-sm capitalize transition-all ${
-                  selectedGenres.has(name)
-                    ? 'bg-primary text-white shadow-soft'
-                    : 'bg-surface-2 text-muted hover:text-app'
+                  selectedGenres.has(name) ? 'bg-primary text-white shadow-soft' : 'bg-surface-2 text-muted hover:text-app'
                 }`}
               >
                 {name}
@@ -425,12 +327,8 @@ function OrderModal({
         </Section>
 
         <div>
-          <button
-            onClick={() => setAdvanced((v) => !v)}
-            className="flex items-center gap-1.5 text-sm font-medium text-muted hover:text-app transition-colors"
-          >
-            <ChevronDown className={`h-4 w-4 transition-transform ${advanced ? 'rotate-180' : ''}`} />
-            Дополнительно
+          <button onClick={() => setAdvanced((v) => !v)} className="flex items-center gap-1.5 text-sm font-medium text-muted hover:text-app transition-colors">
+            <ChevronDown className={`h-4 w-4 transition-transform ${advanced ? 'rotate-180' : ''}`} /> Дополнительно
           </button>
           {advanced && (
             <div className="mt-3 space-y-4 animate-fade-in">
@@ -438,9 +336,7 @@ function OrderModal({
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => setSelectedMembers(new Set())}
-                    className={`rounded-lg px-3 py-1.5 text-sm transition-all ${
-                      selectedMembers.size === 0 ? 'bg-primary text-white' : 'bg-surface-2 text-muted hover:text-app'
-                    }`}
+                    className={`rounded-lg px-3 py-1.5 text-sm transition-all ${selectedMembers.size === 0 ? 'bg-primary text-white' : 'bg-surface-2 text-muted hover:text-app'}`}
                   >
                     Все участники
                   </button>
@@ -448,9 +344,7 @@ function OrderModal({
                     <button
                       key={m.profileId}
                       onClick={() => toggleMember(m.profileId)}
-                      className={`rounded-lg px-3 py-1.5 text-sm transition-all ${
-                        selectedMembers.has(m.profileId) ? 'bg-primary text-white' : 'bg-surface-2 text-muted hover:text-app'
-                      }`}
+                      className={`rounded-lg px-3 py-1.5 text-sm transition-all ${selectedMembers.has(m.profileId) ? 'bg-primary text-white' : 'bg-surface-2 text-muted hover:text-app'}`}
                     >
                       {m.nickname}
                     </button>
@@ -463,20 +357,9 @@ function OrderModal({
 
         <div className="flex justify-end gap-2 border-t border-app pt-4">
           <Button variant="secondary" onClick={onClose}>Отмена</Button>
-          <Button icon={<Sparkles className="h-4 w-4" />} loading={loading} onClick={submit}>
-            Подобрать
-          </Button>
+          <Button icon={<Sparkles className="h-4 w-4" />} loading={loading} onClick={submit}>Подобрать</Button>
         </div>
       </div>
     </Modal>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="mb-2 block text-sm font-semibold text-app">{title}</label>
-      {children}
-    </div>
   );
 }

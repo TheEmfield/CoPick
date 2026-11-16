@@ -1,11 +1,3 @@
-export type ContentType = 1 | 2 | 3;
-
-export const CONTENT_TYPE_LABEL: Record<ContentType, string> = {
-  1: 'Фильмы',
-  2: 'Сериалы',
-  3: 'Игры',
-};
-
 export interface Profile {
   profileId: number;
   nickname: string;
@@ -31,10 +23,7 @@ export interface GroupMember {
   role: 'owner' | 'member';
 }
 
-export interface GroupDetail {
-  groupId: number;
-  name: string;
-  inviteCode: string;
+export interface GroupDetail extends Group {
   ageRestriction: number | null;
   ownerId: number;
   createdAt: string;
@@ -44,7 +33,7 @@ export interface GroupDetail {
 export interface Genre {
   genreId: number;
   genreName: string;
-  contentType: ContentType;
+  contentType?: number;
 }
 
 export interface Preference {
@@ -56,7 +45,7 @@ export interface Preference {
 
 export interface ContentItem {
   externalId: string;
-  type: 'movie' | 'series' | 'game';
+  type: 'movie';
   title: string;
   genres: string[];
   year: number;
@@ -83,18 +72,9 @@ export interface GroupStats {
   suggestedMood: string;
 }
 
-export type Mood = 'chill' | 'intense' | 'family' | 'brain';
-
-export const MOOD_PRESETS: { id: Mood; label: string; description: string; genres: string[] }[] = [
-  { id: 'chill', label: 'Чилл', description: 'Комедии, романтика, анимация', genres: ['comedy', 'romance', 'animation'] },
-  { id: 'intense', label: 'Драйв', description: 'Экшен, триллеры, хоррор', genres: ['action', 'thriller', 'horror'] },
-  { id: 'family', label: 'Семейный', description: 'Семейные, анимация, мягкий фильтр', genres: ['family', 'animation'] },
-  { id: 'brain', label: 'Для ума', description: 'Драмы, документалки, детективы', genres: ['drama', 'documentary', 'mystery'] },
-];
-
 export interface SavedItem {
   id: number;
   content: ContentItem;
-  list: 'watchlist' | 'liked';
+  list: 'liked';
   addedAt: string;
 }

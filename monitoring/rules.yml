@@ -1,0 +1,12 @@
+groups:
+  - name: copick-slo
+    rules:
+      - alert: HighRequestRate
+        # Алерт сработает, если больше 50 запросов в секунду
+        expr: sum(rate(http_server_requests_seconds_count[1m])) > 50
+        for: 15s
+        labels:
+          severity: critical
+        annotations:
+          summary: "High Load: {{ $value }} req/sec"
+          description: "Too many requests hitting the backend, potential DDoS or traffic spike"
