@@ -113,6 +113,28 @@ public class GroupController {
         return ResponseEntity.noContent().build();
     }
 
+    /** Изменить название группы (только owner) */
+    @PatchMapping("/{id}/name")
+    public ResponseEntity<GroupDetailsDto> updateName(
+            @PathVariable Integer id,
+            @AuthenticationPrincipal Integer currentProfileId,
+            @RequestBody GroupUpdateNameRequest request) {
+
+        Group group = groupService.updateName(id, currentProfileId, request.name());
+        return ResponseEntity.ok(toDetailsDto(group));
+    }
+
+    /** Изменить возрастное ограничение (только owner). null снимает ограничение */
+    @PatchMapping("/{id}/age-restriction")
+    public ResponseEntity<GroupDetailsDto> updateAgeRestriction(
+            @PathVariable Integer id,
+            @AuthenticationPrincipal Integer currentProfileId,
+            @RequestBody GroupUpdateAgeRestrictionRequest request) {
+
+        Group group = groupService.updateAgeRestriction(id, currentProfileId, request.ageRestriction());
+        return ResponseEntity.ok(toDetailsDto(group));
+    }
+
     // ---------- mapping ----------
 
     private GroupDetailsDto toDetailsDto(Group group) {
