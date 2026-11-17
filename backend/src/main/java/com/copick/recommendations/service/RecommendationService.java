@@ -112,6 +112,10 @@ public class RecommendationService {
                     .filter(p -> p.genre() != null && p.count() > 0)
                     .toList();
 
+            if (preferences.isEmpty()) {
+                return List.of();
+            }
+
             List<String> excludedGenres = groupProfile.vetoedGenreIds().stream()
                     .map(genreMappingService::getGenreNameById)
                     .filter(Objects::nonNull)
@@ -119,6 +123,10 @@ public class RecommendationService {
 
             DiscoverRequest request = new DiscoverRequest(preferences, excludedGenres);
             List<ConnectorMovie> connectorMovies = connectorClient.fetchMovies(request);
+
+            if (connectorMovies == null || connectorMovies.isEmpty()) {
+                return List.of();
+            }
 
             List<MovieCandidate> candidates = connectorMovies.stream()
                     .map(cm -> {
