@@ -27,7 +27,7 @@ func TestGetMovies_Success(t *testing.T) {
 	mockFetcher.On("FetchMovies", mock.Anything, mock.AnythingOfType("dto.DiscoverRequest")).Return(expectedResp, nil).Once()
 
 	api := NewServiceAPI(discardLogger(), nil, mockFetcher)
-	reqBody := []byte(`{"preferences": [{"genre": "action", "count": 1}], "excluded_genres": ["horror"]}`)
+	reqBody := []byte(`{"preferences": [{"genre": "Боевик", "count": 1}], "excluded_genres": ["Хоррор"]}`)
 
 	req := httptest.NewRequest(http.MethodPost, "/discover", bytes.NewReader(reqBody))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
@@ -79,7 +79,7 @@ func TestGetMovies_InvalidCount(t *testing.T) {
 	mockFetcher := mocks.NewFetcher(t)
 	api := NewServiceAPI(discardLogger(), nil, mockFetcher)
 
-	reqBody := []byte(`{"preferences": [{"genre": "action", "count": 0}]}`)
+	reqBody := []byte(`{"preferences": [{"genre": "Боевик", "count": 0}]}`)
 	req := httptest.NewRequest(http.MethodPost, "/discover", bytes.NewReader(reqBody))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
@@ -95,10 +95,10 @@ func TestGetMovies_InvalidCount(t *testing.T) {
 
 func TestGetMovies_FetcherUnknownGenreError(t *testing.T) {
 	mockFetcher := mocks.NewFetcher(t)
-	mockFetcher.On("FetchMovies", mock.Anything, mock.Anything).Return(nil, errors.New("unknown genre: fantasy")).Once()
+	mockFetcher.On("FetchMovies", mock.Anything, mock.Anything).Return(nil, errors.New("unknown genre: Фэнтези")).Once()
 
 	api := NewServiceAPI(discardLogger(), nil, mockFetcher)
-	reqBody := []byte(`{"preferences": [{"genre": "fantasy", "count": 1}]}`)
+	reqBody := []byte(`{"preferences": [{"genre": "Фэнтези", "count": 1}]}`)
 
 	req := httptest.NewRequest(http.MethodPost, "/discover", bytes.NewReader(reqBody))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
@@ -117,7 +117,7 @@ func TestGetMovies_FetcherInternalError(t *testing.T) {
 	mockFetcher.On("FetchMovies", mock.Anything, mock.Anything).Return(nil, errors.New("connection timeout")).Once()
 
 	api := NewServiceAPI(discardLogger(), nil, mockFetcher)
-	reqBody := []byte(`{"preferences": [{"genre": "action", "count": 1}]}`)
+	reqBody := []byte(`{"preferences": [{"genre": "Боевик", "count": 1}]}`)
 
 	req := httptest.NewRequest(http.MethodPost, "/discover", bytes.NewReader(reqBody))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
@@ -137,7 +137,7 @@ func TestGetMovies_MultiplePreferences(t *testing.T) {
 	mockFetcher.On("FetchMovies", mock.Anything, mock.AnythingOfType("dto.DiscoverRequest")).Return(expectedResp, nil).Once()
 
 	api := NewServiceAPI(discardLogger(), nil, mockFetcher)
-	reqBody := []byte(`{"preferences": [{"genre": "action", "count": 1}, {"genre": "comedy", "count": 1}]}`)
+	reqBody := []byte(`{"preferences": [{"genre": "Боевик", "count": 1}, {"genre": "Комедия", "count": 1}]}`)
 
 	req := httptest.NewRequest(http.MethodPost, "/discover", bytes.NewReader(reqBody))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)

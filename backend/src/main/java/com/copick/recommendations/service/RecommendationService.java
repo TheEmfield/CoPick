@@ -16,12 +16,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Value;
 
+import io.micrometer.core.instrument.Counter;      // <<< НОВОЕ
+import io.micrometer.core.instrument.MeterRegistry; // <<< НОВОЕ
+import io.micrometer.core.instrument.Timer;         // <<< НОВОЕ
+
 import java.time.OffsetDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 public class RecommendationService {
+
 
     @Value("${recommendations.candidate-pool-size:150}")
     private int candidatePoolSize;
@@ -35,6 +40,9 @@ public class RecommendationService {
     private final SnapshotMovieRepository snapshotMovieRepository;
     private final SnapshotMovieGenreRepository snapshotMovieGenreRepository;
 
+    private final Timer recommendationTimer;
+    private final Counter recommendationsCounter;
+
     public RecommendationService(
             CoPickAlgorithm algorithm,
             ConnectorClient connectorClient,
@@ -43,7 +51,8 @@ public class RecommendationService {
             ProfilePreferenceRepository preferenceRepository,
             RecommendationSnapshotRepository snapshotRepository,
             SnapshotMovieRepository snapshotMovieRepository,
-            SnapshotMovieGenreRepository snapshotMovieGenreRepository
+            SnapshotMovieGenreRepository snapshotMovieGenreRepository,
+            MeterRegistry meterRegistry
     ) {
         this.algorithm = algorithm;
         this.connectorClient = connectorClient;
@@ -53,6 +62,14 @@ public class RecommendationService {
         this.snapshotRepository = snapshotRepository;
         this.snapshotMovieRepository = snapshotMovieRepository;
         this.snapshotMovieGenreRepository = snapshotMovieGenreRepository;
+
+        this.recommendationTimer = Timer.builder("copick_recommendation_duration_seconds")
+                .description("Time to generate group recommendations")
+                .register(meterRegistry);
+
+        this.recommendationsCounter = Counter.builder("copick_recommendations_total")
+                .description("Total recommendations served")
+                .register(meterRegistry);
     }
 
     @Transactional
@@ -62,83 +79,89 @@ public class RecommendationService {
             List<Integer> contextGenreIds,
             int limit
     ) {
-        List<Integer> context = contextGenreIds == null ? List.of() : contextGenreIds;
-        List<GroupMember> members;
-        if (requestedProfileIds != null && !requestedProfileIds.isEmpty()) {
-            members = groupMemberRepository.findByIdGroupIdAndIdProfileIdIn(groupId, requestedProfileIds);
-        } else {
-            members = groupMemberRepository.findByIdGroupId(groupId);
-        }
+        return recommendationTimer.record(() -> {
 
-        if (members.isEmpty()) {
-            return List.of();
-        }
-
-        List<Integer> profileIds = members.stream()
-                .map(m -> m.getId().getProfileId())
-                .toList();
-
-        List<ProfilePreference> prefs = preferenceRepository.findByIdProfileIdIn(profileIds);
-
-        List<ParticipantPreference> participants = buildParticipants(prefs, profileIds);
-
-        GroupProfile groupProfile = algorithm.calculateGroupProfile(participants, context);
-
-        List<GenrePreference> preferences = groupProfile.genreInfluenceCoefficients().entrySet().stream()
-                .map(entry -> {
-                    String genreName = genreMappingService.getGenreNameById(entry.getKey());
-                    int count = (int) Math.round(entry.getValue() * candidatePoolSize);
-                    return new GenrePreference(genreName, count);
-                })
-                .filter(p -> p.genre() != null && p.count() > 0)
-                .toList();
-
-        List<String> excludedGenres = groupProfile.vetoedGenreIds().stream()
-                .map(genreMappingService::getGenreNameById)
-                .filter(Objects::nonNull)
-                .toList();
-
-        DiscoverRequest request = new DiscoverRequest(preferences, excludedGenres);
-        List<ConnectorMovie> connectorMovies = connectorClient.fetchMovies(request);
-
-        List<MovieCandidate> candidates = connectorMovies.stream()
-                .map(cm -> {
-                    Set<Integer> internalGenreIds = cm.genres().stream()
-                            .map(genreMappingService::getGenreIdByName)
-                            .filter(Objects::nonNull)
-                            .collect(Collectors.toSet());
-
-                    return new MovieCandidate(
-                            cm.id(),
-                            cm.title(),
-                            internalGenreIds,
-                            cm.rating()
-                    );
-                })
-                .toList();
-
-        List<ScoredMovie> result = algorithm.generateRecommendations(participants, context, candidates, true);
-
-        if (result.size() > limit) {
-            result = new ArrayList<>(result.subList(0, limit));
-        }
-
-        Map<Integer, ConnectorMovie> byId = new HashMap<>();
-        for (ConnectorMovie cm : connectorMovies) {
-            byId.putIfAbsent(cm.id(), cm);
-        }
-
-        List<ConnectorMovie> moviesToSave = new ArrayList<>();
-        for (ScoredMovie sm : result) {
-            ConnectorMovie cm = byId.get(sm.movieId());
-            if (cm != null) {
-                moviesToSave.add(cm);
+            List<Integer> context = contextGenreIds == null ? List.of() : contextGenreIds;
+            List<GroupMember> members;
+            if (requestedProfileIds != null && !requestedProfileIds.isEmpty()) {
+                members = groupMemberRepository.findByIdGroupIdAndIdProfileIdIn(groupId, requestedProfileIds);
+            } else {
+                members = groupMemberRepository.findByIdGroupId(groupId);
             }
-        }
 
-        saveSnapshot(groupId, moviesToSave);
+            if (members.isEmpty()) {
+                return List.of();
+            }
 
-        return result;
+            List<Integer> profileIds = members.stream()
+                    .map(m -> m.getId().getProfileId())
+                    .toList();
+
+            List<ProfilePreference> prefs = preferenceRepository.findByIdProfileIdIn(profileIds);
+
+            List<ParticipantPreference> participants = buildParticipants(prefs, profileIds);
+
+            GroupProfile groupProfile = algorithm.calculateGroupProfile(participants, context);
+
+            List<GenrePreference> preferences = groupProfile.genreInfluenceCoefficients().entrySet().stream()
+                    .map(entry -> {
+                        String genreName = genreMappingService.getGenreNameById(entry.getKey());
+                        int count = (int) Math.round(entry.getValue() * candidatePoolSize);
+                        return new GenrePreference(genreName, count);
+                    })
+                    .filter(p -> p.genre() != null && p.count() > 0)
+                    .toList();
+
+            List<String> excludedGenres = groupProfile.vetoedGenreIds().stream()
+                    .map(genreMappingService::getGenreNameById)
+                    .filter(Objects::nonNull)
+                    .toList();
+
+            DiscoverRequest request = new DiscoverRequest(preferences, excludedGenres);
+            List<ConnectorMovie> connectorMovies = connectorClient.fetchMovies(request);
+
+            List<MovieCandidate> candidates = connectorMovies.stream()
+                    .map(cm -> {
+                        Set<Integer> internalGenreIds = cm.genres().stream()
+                                .map(genreMappingService::getGenreIdByName)
+                                .filter(Objects::nonNull)
+                                .collect(Collectors.toSet());
+
+                        return new MovieCandidate(
+                                cm.id(),
+                                cm.title(),
+                                internalGenreIds,
+                                cm.rating()
+                        );
+                    })
+                    .toList();
+
+            List<ScoredMovie> result = algorithm.generateRecommendations(participants, context, candidates, true);
+
+            if (result.size() > limit) {
+                result = new ArrayList<>(result.subList(0, limit));
+            }
+
+            Map<Integer, ConnectorMovie> byId = new HashMap<>();
+            for (ConnectorMovie cm : connectorMovies) {
+                byId.putIfAbsent(cm.id(), cm);
+            }
+
+            List<ConnectorMovie> moviesToSave = new ArrayList<>();
+            for (ScoredMovie sm : result) {
+                ConnectorMovie cm = byId.get(sm.movieId());
+                if (cm != null) {
+                    moviesToSave.add(cm);
+                }
+            }
+
+            saveSnapshot(groupId, moviesToSave);
+
+            // <<< НОВОЕ: Увеличиваем счетчик успешных выдач рекомендаций
+            recommendationsCounter.increment();
+
+            return result;
+        });
     }
 
     @Transactional(readOnly = true)

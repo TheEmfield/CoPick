@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_ROOT_PASSWORD:-postgres}
       POSTGRES_DB: copick_db
     volumes:
-      - postgres_data:/var/lib/postgresql
+      - postgres_data:/var/lib/postgresql/data
       - ./postgres_init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d copick_db"]
@@ -50,7 +50,7 @@ services:
       - app_network
 
   backend:
-    container_name: copick_backend
+    container_name: backend
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -58,11 +58,12 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/copick_db
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_ROOT_PASSWORD:-postgres}
-      
       JWT_SECRET: ${JWT_SECRET:-my-super-secret-local-key-for-development-1234567890}
       JWT_DURATION: ${JWT_DURATION:-86400000}
-      
-      CONNECTOR_URL: http://connector:8080 
+      CONNECTOR_URL: http://connector:8080
+      # Переменные для Telegram-бота
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
     ports:
       - "8080:8080"
     depends_on:
@@ -73,7 +74,7 @@ services:
     restart: unless-stopped
 
   web:
-    container_name: copick_web
+    container_name: web
     build:
       context: ./web
       dockerfile: Dockerfile
@@ -85,8 +86,78 @@ services:
       - app_network
     restart: unless-stopped
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/rules.yml:/etc/prometheus/rules.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    networks:
+      - app_network
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+    networks:
+      - app_network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - app_network
+  
+  integration_tests:
+    build:
+      context: ./tests/integration_tests
+    container_name: integration_tests
+    restart: "no"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - API_HOST=backend
+      - API_PORT=8080
+    networks:
+      - app_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - integration_tests
+      
+  loadtest:
+    image: grafana/k6:latest
+    container_name: loadtest
+    networks:
+      - app_network
+    environment:
+      - API_URL=http://backend:8080/api/v1
+    volumes:
+      - ./tests/load_test.js:/scripts/load_test.js:ro
+    command: run /scripts/load_test.js
+    profiles:
+      - loadtest
+
 volumes:
   postgres_data:
+  grafana_data:
 
 networks:
   app_network:
