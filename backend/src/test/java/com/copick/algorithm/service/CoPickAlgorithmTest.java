@@ -243,8 +243,11 @@ class CoPickAlgorithmTest {
 
             assertThat(profile.vetoedGenreIds()).isEmpty();
             assertThat(profile.averageWeights()).containsEntry(2, -1.0);
-            // отрицательный жанр не попадает в коэффициенты влияния
-            assertThat(profile.genreInfluenceCoefficients()).isEmpty();
+            // положительных весов нет -> влияние равномерно распределяется по контекстным жанрам:
+            // единственный контекстный жанр 2 получает коэффициент 1.0
+            assertThat(profile.genreInfluenceCoefficients())
+                    .containsEntry(2, 1.0)
+                    .hasSize(1);
         }
 
         @Test
