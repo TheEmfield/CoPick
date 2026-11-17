@@ -10,7 +10,7 @@ import { useToast } from '../components/Toast';
 import { useAuth } from '../auth';
 import {
   ArrowLeft, Copy, RefreshCw, Crown, UserMinus, LogOut, Trash2,
-  Sparkles, Users, ChevronDown, Layers, Heart,
+  Sparkles, Users, ChevronDown, Layers, Heart, Pencil, Save
 } from 'lucide-react';
 
 export function GroupDetailPage() {
@@ -25,6 +25,10 @@ export function GroupDetailPage() {
   const [likes, setLikes] = useState<SavedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [orderOpen, setOrderOpen] = useState(false);
+  
+  const [editOpen, setEditOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editAge, setEditAge] = useState<number | "">("");
 
   const isOwner = profile?.profileId === detail?.ownerId;
 
@@ -122,6 +126,27 @@ export function GroupDetailPage() {
     }
   };
 
+  const handleSaveGroupSettings = async () => {
+    try {
+      if (editName.trim() !== detail?.name) {
+        await api.updateGroupName(groupId, editName.trim());
+      }
+      
+      const newAge = editAge === "" ? null : Number(editAge);
+      if (newAge !== detail?.ageRestriction) {
+        await api.updateGroupAgeRestriction(groupId, newAge);
+      }
+
+      const updatedDetail = await api.getGroupDetail(groupId);
+      setDetail(updatedDetail);
+
+      setEditOpen(false);
+      toast('Настройки группы обновлены', 'success');
+    } catch {
+      toast('Не удалось обновить настройки', 'error');
+    }
+  };
+
   if (loading || !detail) {
     return <div className="flex justify-center py-20"><Spinner className="text-primary" /></div>;
   }
@@ -133,14 +158,37 @@ export function GroupDetailPage() {
       </button>
 
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-app">{detail.name}</h1>
-          {detail.ageRestriction && (
-            <span className="mt-1 inline-block rounded-md bg-red-50 text-red-600 px-2 py-0.5 text-xs font-medium">
-              {detail.ageRestriction}+
-            </span>
+        <div className="flex items-start gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-app">{detail.name}</h1>
+            <div className="mt-1 flex items-center gap-2">
+              {detail.ageRestriction ? (
+                <span className="inline-flex items-center rounded-md bg-red-50 text-red-600 px-2 py-0.5 text-xs font-medium">
+                  {detail.ageRestriction}+
+                </span>
+              ) : (
+                <span className="inline-flex items-center rounded-md bg-green-50 text-green-600 px-2 py-0.5 text-xs font-medium">
+                  Без ограничений
+                </span>
+              )}
+            </div>
+          </div>
+          
+          {isOwner && (
+            <button
+              onClick={() => {
+                setEditName(detail.name);
+                setEditAge(detail.ageRestriction ?? "");
+                setEditOpen(true);
+              }}
+              className="mt-1 rounded-lg p-1.5 text-muted hover:bg-surface-2 hover:text-app transition-colors"
+              title="Редактировать группу"
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
           )}
         </div>
+        
         <div className="flex gap-2">
           {isOwner ? (
             <Button variant="danger" icon={<Trash2 className="h-4 w-4" />} onClick={deleteGroup}>Удалить группу</Button>
@@ -190,6 +238,49 @@ export function GroupDetailPage() {
           </Button>
         </div>
       </div>
+
+      <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Настройки группы" size="sm">
+        <div className="space-y-4">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-app">Название группы</label>
+            <input
+              type="text"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              maxLength={64}
+              className="w-full rounded-xl border border-app bg-surface px-3 py-2 text-app placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              placeholder="Введите название"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-app">
+              Возрастное ограничение 
+              <span className="ml-1 text-xs text-muted">(оставьте пустым, чтобы снять)</span>
+            </label>
+            <input
+              type="number"
+              min="0"
+              max="21"
+              value={editAge}
+              onChange={(e) => setEditAge(e.target.value === "" ? "" : Number(e.target.value))}
+              className="w-full rounded-xl border border-app bg-surface px-3 py-2 text-app placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              placeholder="0 - 21"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 border-t border-app pt-4 mt-6">
+            <Button variant="secondary" onClick={() => setEditOpen(false)}>Отмена</Button>
+            <Button 
+              icon={<Save className="h-4 w-4" />} 
+              onClick={handleSaveGroupSettings}
+              disabled={!editName.trim()}
+            >
+              Сохранить
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <OrderModal
         open={orderOpen}
