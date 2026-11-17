@@ -220,8 +220,10 @@ class RecommendationServiceTest {
             when(groupMemberRepository.findByIdGroupId(GROUP_ID)).thenReturn(List.of(member(1)));
             when(preferenceRepository.findByIdProfileIdIn(List.of(1))).thenReturn(List.of());
 
+            // ненулевой коэффициент влияния -> запрос к коннектору состоится
             when(algorithm.calculateGroupProfile(anyList(), anyList()))
-                    .thenReturn(new GroupProfile(Map.of(), Set.of(), 1, Map.of()));
+                    .thenReturn(new GroupProfile(Map.of(3, 1.0), Set.of(), 1, Map.of(3, 1.0)));
+            when(genreMappingService.getGenreNameById(3)).thenReturn("action");
             when(connectorClient.fetchMovies(any(DiscoverRequest.class)))
                     .thenReturn(List.of(
                             connectorMovie(101, "Movie A", List.of(), 8.0),
@@ -246,8 +248,8 @@ class RecommendationServiceTest {
         }
 
         @Test
-        @DisplayName("жанры с нулевым count и неизвестными именами не попадают в запрос")
-        void zeroCountsAndUnknownNamesFilteredFromRequest() {
+        @DisplayName("жанры с нулевым count и неизвестными именами -> пустой запрос -> коннектор не вызывается")
+        void zeroCountsAndUnknownNamesSkipConnectorCall() {
             when(groupMemberRepository.findByIdGroupId(GROUP_ID)).thenReturn(List.of(member(1)));
             when(preferenceRepository.findByIdProfileIdIn(List.of(1))).thenReturn(List.of());
 
@@ -256,21 +258,15 @@ class RecommendationServiceTest {
                     .thenReturn(new GroupProfile(Map.of(3, 0.002), Set.of(), 1, Map.of(3, 0.002)));
             when(genreMappingService.getGenreNameById(3)).thenReturn(null); // имя неизвестно
 
-            when(connectorClient.fetchMovies(any(DiscoverRequest.class))).thenReturn(List.of());
-            when(algorithm.generateRecommendations(anyList(), anyList(), anyList(), eq(true)))
-                    .thenReturn(List.of());
-            when(snapshotRepository.save(any(RecommendationSnapshot.class))).thenAnswer(invocation -> {
-                RecommendationSnapshot snapshot = invocation.getArgument(0);
-                snapshot.setSnapshotId(77);
-                return snapshot;
-            });
+            List<ScoredMovie> result =
+                    recommendationService.getRecommendations(GROUP_ID, null, null, 10);
 
-            recommendationService.getRecommendations(GROUP_ID, null, null, 10);
-
-            ArgumentCaptor<DiscoverRequest> requestCaptor = ArgumentCaptor.forClass(DiscoverRequest.class);
-            verify(connectorClient).fetchMovies(requestCaptor.capture());
-            assertThat(requestCaptor.getValue().preferences()).isEmpty();
-            assertThat(requestCaptor.getValue().excluded_genres()).isEmpty();
+            // запрос к коннектору получился пустым -> ранний выход:
+            // без похода в коннектор, без скоринга и без сохранения снимка
+            assertThat(result).isEmpty();
+            verifyNoInteractions(connectorClient, snapshotRepository,
+                    snapshotMovieRepository, snapshotMovieGenreRepository);
+            verify(algorithm, never()).generateRecommendations(anyList(), anyList(), anyList(), eq(true));
         }
     }
 
