@@ -245,4 +245,18 @@ export const api = {
       method: 'DELETE',
     });
   },
+
+  async updateGroupName(groupId: number, name: string) {
+    return request<GroupDetail>(`/groups/${groupId}/name`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
+    });
+  },
+
+  async updateGroupAgeRestriction(groupId: number, ageRestriction: number | null) {
+    return request<GroupDetail>(`/groups/${groupId}/age-restriction`, {
+      method: 'PATCH',
+      body: JSON.stringify({ ageRestriction }),
+    });
+  },
 };
